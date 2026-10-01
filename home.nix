@@ -1,7 +1,7 @@
-# User-level configuration for chinh (Home Manager, draft, untested).
+# User-level configuration for chinh (Home Manager).
 # Most settings (KDE themes, app logins, Dolphin menus, game saves) come back from the
 # backup archive; this file declares the programs and the few configs worth managing.
-{ config, pkgs, ... }:
+{ config, pkgs, lib, ... }:
 
 {
   home.username = "chinh";
@@ -83,6 +83,13 @@
   '';
   # Safety net from the same incident: rebuild the font cache before plasmashell starts,
   # so a poisoned cache can't crash-loop the desktop ("-" = never block startup).
+  # KDE Wallet off: Chinh uses no password manager. Wi-Fi secrets are system-owned (NM
+  # psk-flags 0) and the Secret Service API was already off, so nothing depends on it.
+  # kwalletrc is rewritten by KDE, so set the key on each activation instead of owning the file.
+  home.activation.disableKWallet = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    run ${pkgs.kdePackages.kconfig}/bin/kwriteconfig6 --file kwalletrc --group Wallet --key Enabled false
+  '';
+
   xdg.configFile."systemd/user/plasma-plasmashell.service.d/fontcache.conf".text = ''
     [Service]
     ExecStartPre=-${pkgs.fontconfig.bin}/bin/fc-cache -f
