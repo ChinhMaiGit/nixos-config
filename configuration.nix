@@ -28,6 +28,11 @@
     fcitx5.waylandFrontend = true;
     fcitx5.addons = with pkgs; [ qt6Packages.fcitx5-unikey kdePackages.fcitx5-configtool ];
   };
+  # Run Chromium/Electron apps (Edge, VS Code, Discord, Slack) natively on Wayland. Their
+  # nixpkgs launchers then add --enable-wayland-ime, which they need to type Vietnamese
+  # through fcitx5. KWin must also start fcitx5: System Settings > Keyboard > Virtual
+  # Keyboard = Fcitx 5 (kwinrc [Wayland] InputMethod, set outside this config).
+  environment.sessionVariables.NIXOS_OZONE_WL = "1";
 
   # ---------- Desktop: KDE Plasma 6 on Wayland ----------
   services.displayManager.sddm.enable = true;
