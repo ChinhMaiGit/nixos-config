@@ -38,6 +38,8 @@
   services.displayManager.sddm.enable = true;
   services.displayManager.sddm.wayland.enable = true;
   services.desktopManager.plasma6.enable = true;
+  # Default Plasma apps Chinh removed on Kubuntu too (PDFs open in GNOME Papers).
+  environment.plasma6.excludePackages = with pkgs.kdePackages; [ okular ];
 
   # ---------- Graphics: AMD RX 9070 XT ----------
   hardware.graphics.enable = true;
@@ -50,7 +52,7 @@
     enable = true;
     drivers = with pkgs; [ hplip brlaser gutenprint foo2zjs splix ];
   };
-  # Scanning (GNOME Document Scanner, Skanpage): SANE with driverless network scanning
+  # Scanning (GNOME Document Scanner; Skanpage is hidden in home.nix): SANE with driverless network scanning
   # (AirScan/eSCL) and HP devices; Avahi finds network scanners and printers like on Kubuntu.
   hardware.sane = {
     enable = true;

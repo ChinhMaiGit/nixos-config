@@ -23,9 +23,9 @@
     protonup-qt
     # Media and KDE apps
     haruna kdePackages.elisa kdePackages.gwenview kdePackages.kate kdePackages.kcalc
-    kdePackages.kcharselect kdePackages.ark kdePackages.ksystemlog kdePackages.kwalletmanager
+    kdePackages.kcharselect kdePackages.ark kdePackages.ksystemlog
     kdePackages.dolphin-plugins kdePackages.ffmpegthumbs kdePackages.kdegraphics-thumbnailers
-    kdePackages.skanpage simple-scan papers
+    simple-scan papers
     # System / terminal tools
     btop htop fastfetch cmatrix go-mtpfs
     # Cloud
@@ -83,6 +83,11 @@
   '';
   # Safety net from the same incident: rebuild the font cache before plasmashell starts,
   # so a poisoned cache can't crash-loop the desktop ("-" = never block startup).
+  xdg.configFile."systemd/user/plasma-plasmashell.service.d/fontcache.conf".text = ''
+    [Service]
+    ExecStartPre=-${pkgs.fontconfig.bin}/bin/fc-cache -f
+  '';
+
   # KDE Wallet off: Chinh uses no password manager. Wi-Fi secrets are system-owned (NM
   # psk-flags 0) and the Secret Service API was already off, so nothing depends on it.
   # kwalletrc is rewritten by KDE, so set the key on each activation instead of owning the file.
@@ -90,8 +95,10 @@
     run ${pkgs.kdePackages.kconfig}/bin/kwriteconfig6 --file kwalletrc --group Wallet --key Enabled false
   '';
 
-  xdg.configFile."systemd/user/plasma-plasmashell.service.d/fontcache.conf".text = ''
-    [Service]
-    ExecStartPre=-${pkgs.fontconfig.bin}/bin/fc-cache -f
-  '';
+  # Hide apps NixOS's Plasma module installs unconditionally (Skanpage comes with
+  # hardware.sane, KWallet Manager is a required Plasma part); Chinh removed both on Kubuntu.
+  xdg.dataFile = lib.genAttrs [
+    "applications/org.kde.skanpage.desktop"
+    "applications/org.kde.kwalletmanager.desktop"
+  ] (_: { text = "[Desktop Entry]\nHidden=true\n"; });
 }
