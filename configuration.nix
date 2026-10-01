@@ -50,6 +50,17 @@
     enable = true;
     drivers = with pkgs; [ hplip brlaser gutenprint foo2zjs splix ];
   };
+  # Scanning (GNOME Document Scanner, Skanpage): SANE with driverless network scanning
+  # (AirScan/eSCL) and HP devices; Avahi finds network scanners and printers like on Kubuntu.
+  hardware.sane = {
+    enable = true;
+    extraBackends = with pkgs; [ sane-airscan hplip ];
+  };
+  services.avahi = {
+    enable = true;
+    nssmdns4 = true;
+    openFirewall = true;
+  };
   services.fwupd.enable = true;
   services.power-profiles-daemon.enable = true;
   services.locate = { enable = true; package = pkgs.plocate; };

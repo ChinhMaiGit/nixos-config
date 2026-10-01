@@ -25,7 +25,7 @@
     haruna kdePackages.elisa kdePackages.gwenview kdePackages.kate kdePackages.kcalc
     kdePackages.kcharselect kdePackages.ark kdePackages.ksystemlog kdePackages.kwalletmanager
     kdePackages.dolphin-plugins kdePackages.ffmpegthumbs kdePackages.kdegraphics-thumbnailers
-    kdePackages.skanpage papers
+    kdePackages.skanpage simple-scan papers
     # System / terminal tools
     btop htop fastfetch cmatrix go-mtpfs
     # Cloud
