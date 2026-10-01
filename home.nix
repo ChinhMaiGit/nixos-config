@@ -18,7 +18,7 @@
     (tesseract.override { enableLanguages = [ "eng" "deu" "vie" "frk" ]; })
     texlive.combined.scheme-full
     # Comics / e-books (Kindle pipeline)
-    kcc
+    kcc unar
     # Gaming tools
     protonup-qt
     # Media and KDE apps
