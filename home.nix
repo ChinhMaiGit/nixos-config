@@ -10,7 +10,10 @@
 
   home.packages = with pkgs; [
     # Browsers / communication / office
-    microsoft-edge discord slack
+    # Edge keeps its cookie key in KDE Wallet by default; with the wallet off it hangs on
+    # every page (2026-10-02). "basic" = Edge's own built-in key store.
+    (microsoft-edge.override { commandLineArgs = "--password-store=basic"; })
+    discord slack
     # Development
     vscode claude-code uv gh nodejs jdk python3
     # Documents, OCR, LaTeX
