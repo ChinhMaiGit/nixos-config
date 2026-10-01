@@ -18,6 +18,11 @@
   # ---------- Machine ----------
   networking.hostName = "ChinhMaiPC";
   networking.networkmanager.enable = true;                  # Wi-Fi: re-enter the Vodafone password once
+  # MediaTek MT7922 Wi-Fi (mt7921e): after waking from sleep the 4-way handshake timed out
+  # and NetworkManager asked for the "wrong" password again (2026-10-02). PCIe ASPM and
+  # Wi-Fi power saving off is the usual fix for this card's resume problems.
+  boot.extraModprobeConfig = "options mt7921e disable_aspm=1";
+  networking.networkmanager.wifi.powersave = false;
   time.timeZone = "Europe/Berlin";
   i18n.defaultLocale = "en_US.UTF-8";
 
