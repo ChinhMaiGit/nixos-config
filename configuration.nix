@@ -12,6 +12,20 @@
   # ---------- Nix ----------
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
   nix.settings.auto-optimise-store = true;
+  # Weekly cleanup: keep the 3 newest system versions (matching the 3 boot menu entries),
+  # then delete everything in /nix/store no longer used. nix.gc can only delete by age,
+  # so this is a small service instead. Persistent = catch up if the PC was off.
+  systemd.services.nix-cleanup = {
+    description = "Delete old NixOS versions (keep 3) and unused store paths";
+    serviceConfig.Type = "oneshot";
+    path = [ config.nix.package ];
+    script = ''
+      nix-env --profile /nix/var/nix/profiles/system --delete-generations +3
+      nix-collect-garbage
+    '';
+    startAt = "weekly";
+  };
+  systemd.timers.nix-cleanup.timerConfig.Persistent = true;
   nixpkgs.config.allowUnfree = true;                        # Steam, Edge, VS Code, Discord, Slack, Claude Code
   programs.nix-ld.enable = true;                            # prebuilt binaries (uv/pip wheels, VS Code extensions)
 
