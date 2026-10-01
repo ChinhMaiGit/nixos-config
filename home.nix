@@ -81,4 +81,10 @@
       <selectfont><rejectfont><glob>*/katex/*</glob></rejectfont></selectfont>
     </fontconfig>
   '';
+  # Safety net from the same incident: rebuild the font cache before plasmashell starts,
+  # so a poisoned cache can't crash-loop the desktop ("-" = never block startup).
+  xdg.configFile."systemd/user/plasma-plasmashell.service.d/fontcache.conf".text = ''
+    [Service]
+    ExecStartPre=-${pkgs.fontconfig.bin}/bin/fc-cache -f
+  '';
 }
