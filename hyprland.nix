@@ -444,6 +444,9 @@ in
       X-Restart-Triggers = [
         "${config.xdg.configFile."elephant/symbols.toml".source}"
         "${config.xdg.configFile."elephant/desktopapplications.toml".source}"
+        # Elephant reads the app list at start and misses a rebuild swapping the app folder,
+        # so a new or removed app (in home.packages or a desktop entry) restarts it too.
+        "${config.home.path}"
       ];
     };
     Service = {
