@@ -37,11 +37,13 @@
   # Wi-Fi power saving off is the usual fix for this card's resume problems.
   boot.extraModprobeConfig = "options mt7921e disable_aspm=1";
   networking.networkmanager.wifi.powersave = false;
-  # Those two alone didn't fix it: after resume the handshake still timed out twice on 5 GHz
-  # (09:21, after a reboot with both active). Unload the driver before sleep and load it
-  # fresh on wake, so the card's firmware always starts clean.
-  powerManagement.powerDownCommands = "${pkgs.kmod}/bin/modprobe -r mt7921e";
-  powerManagement.resumeCommands = "${pkgs.kmod}/bin/modprobe mt7921e";
+  # Neither fixed it, nor did reloading the driver around sleep: the logs show the 5 GHz
+  # handshake times out 1-4 times on almost every connect (after boot too, not just sleep),
+  # while 2.4 GHz went through first try. Try iwd instead of wpa_supplicant for the WPA login.
+  networking.networkmanager.wifi.backend = "iwd";
+  # Chinh wants 5 GHz only (the 2.4 GHz channel is crowded). iwd ignores NetworkManager's
+  # BSSID pin, so turn the 2.4 GHz band off in iwd itself (0.0 = never scan or connect there).
+  networking.wireless.iwd.settings.Rank.BandModifier2_4GHz = 0.0;
   time.timeZone = "Europe/Berlin";
   i18n.defaultLocale = "en_US.UTF-8";
 
