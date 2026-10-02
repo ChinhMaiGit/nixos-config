@@ -1,5 +1,5 @@
 # Omarchy's SDDM login theme (basecamp/omarchy default/sddm/omarchy, MIT) with Main.qml from
-# ./sddm (adds a session line and F2 switch). Installed as the SDDM theme "omarchy".
+# ./sddm (session line + F2 switch, "Welcome back", wallpaper background). Installed as the SDDM theme "omarchy".
 { pkgs }:
 
 let
@@ -15,4 +15,5 @@ pkgs.runCommand "sddm-theme-omarchy" { } ''
   cp -r ${omarchy}/default/sddm/omarchy $out/share/sddm/themes/omarchy
   chmod -R u+w $out/share/sddm/themes/omarchy
   cp ${./sddm/Main.qml} $out/share/sddm/themes/omarchy/Main.qml
+  cp ${./themes/cyan/backgrounds/1-wallpaper.jpg} $out/share/sddm/themes/omarchy/background.jpg
 ''

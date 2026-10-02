@@ -1,6 +1,9 @@
 // Omarchy's SDDM login theme (basecamp/omarchy default/sddm/omarchy/Main.qml, MIT,
 // (c) David Heinemeier Hansson), with one addition for Chinh: the session is shown at the
 // bottom and F2 switches it, so Plasma stays reachable while it's kept as a fallback.
+// Also for Chinh: "Welcome back" instead of the Omarchy logo, and his Wallpaper.jpg behind a
+// half-transparent dark layer instead of the solid colour (copied in by sddm-theme.nix; SDDM
+// runs as its own user and can't read the current wallpaper from his home folder).
 import QtQuick 2.0
 import SddmComponents 2.0
 
@@ -9,6 +12,17 @@ Rectangle {
   width: 640
   height: 480
   color: "#1a1b26"
+
+  Image {
+    anchors.fill: parent
+    source: "background.jpg"
+    fillMode: Image.PreserveAspectCrop
+  }
+
+  Rectangle {
+    anchors.fill: parent
+    color: Qt.rgba(0.102, 0.106, 0.149, 0.5)   // #1a1b26 at 50 %
+  }
 
   property string currentUser: userModel.lastUser
   property bool loginFailed: false
@@ -52,12 +66,14 @@ Rectangle {
     anchors.centerIn: parent
     spacing: 40
 
-    Image {
-      id: logo
-      source: "logo.png"
-      width: Math.min(sourceSize.width, root.width * 0.8)
-      height: sourceSize.width > 0 ? Math.round(width * sourceSize.height / sourceSize.width) : 0
-      fillMode: Image.PreserveAspectFit
+    Text {
+      text: "Welcome back"
+      color: "#c0caf5"
+      font.family: "JetBrainsMono Nerd Font"
+      font.pixelSize: 56
+      font.weight: Font.DemiBold
+      style: Text.Raised
+      styleColor: Qt.rgba(0, 0, 0, 0.4)
       anchors.horizontalCenter: parent.horizontalCenter
     }
 
@@ -140,7 +156,9 @@ Rectangle {
     Text {
       anchors.horizontalCenter: parent.horizontalCenter
       text: (root.sessionNames[root.sessionIndex] || "") + "   ·   F2 to switch"
-      color: "#565f89"
+      color: "#a9b1d6"
+      style: Text.Outline                        // readable over bright parts of the wallpaper
+      styleColor: Qt.rgba(0, 0, 0, 0.6)
       font.family: "JetBrainsMono Nerd Font"
       font.pixelSize: 14
     }
