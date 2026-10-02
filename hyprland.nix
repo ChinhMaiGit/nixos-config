@@ -18,12 +18,15 @@ let
   browser = "${config.home.homeDirectory}/.local/bin/microsoft-edge";
   app = cmd: "uwsm app -- ${cmd}";
 
+  # Omarchy 3's launcher size (bin/omarchy-launch-walker)
+  launcher = "walker --width 644 --maxheight 300 --minheight 300";
+
   mako = "${pkgs.mako}/bin/mako";
   makoctl = "${pkgs.mako}/bin/makoctl";
 
   # SUPER + ESCAPE, like Omarchy's system menu
   powerMenu = pkgs.writeShellScript "power-menu" ''
-    choice=$(printf '%s\n' Lock Sleep "Log out" Restart "Shut down" | walker --dmenu -p System)
+    choice=$(printf '%s\n' Lock Sleep "Log out" Restart "Shut down" | ${launcher} --dmenu -p System)
     case "$choice" in
       Lock) loginctl lock-session ;;
       Sleep) systemctl suspend ;;
@@ -57,7 +60,7 @@ let
       .[] | select(.has_description) | if .mouse then "" else "\(.dispatcher)\t\(.arg)" end
     ' <<<"$binds")
 
-    choice=$(printf '%s\n' "''${lines[@]}" | walker --dmenu -p Keybindings) || exit 0
+    choice=$(printf '%s\n' "''${lines[@]}" | ${launcher} --dmenu -p Keybindings) || exit 0
     for i in "''${!lines[@]}"; do
       if [[ "''${lines[$i]}" == "$choice" && -n "''${actions[$i]}" ]]; then
         IFS=$'\t' read -r dispatcher arg <<<"''${actions[$i]}"
@@ -210,6 +213,9 @@ in
         vrr = 2;
       };
 
+      # Walker opens without animation (Omarchy 3, default/hypr/apps/walker.conf)
+      layerrule = [ "no_anim on, match:namespace walker" ];
+
       xwayland.force_zero_scaling = true;
       ecosystem.no_update_news = true;
 
@@ -218,7 +224,7 @@ in
       # (bindd, bindmd, ...) carry a description, which the SUPER + K list shows.
       bindd = [
         "SUPER, K, Show keybindings, exec, ${keybindingsMenu}"
-        "SUPER, SPACE, App launcher, exec, walker"
+        "SUPER, SPACE, App launcher, exec, ${launcher}"
         "SUPER, ESCAPE, System menu (lock / sleep / log out / restart / shut down), exec, ${powerMenu}"
         "SUPER, RETURN, Terminal, exec, ${app "alacritty"}"
         "SUPER SHIFT, B, Browser, exec, ${app browser}"
@@ -265,8 +271,8 @@ in
         "SUPER SHIFT, comma, Dismiss all notifications, exec, ${makoctl} dismiss --all"
         "SUPER CTRL, comma, Toggle silencing notifications, exec, ${makoctl} mode -t do-not-disturb"
         "SUPER SHIFT, SPACE, Toggle top bar, exec, pkill -SIGUSR1 waybar"
-        "SUPER CTRL, V, Clipboard manager, exec, walker -m clipboard"
-        "SUPER CTRL, E, Emojis, exec, walker -m symbols"
+        "SUPER CTRL, V, Clipboard manager, exec, ${launcher} -m clipboard"
+        "SUPER CTRL, E, Emojis, exec, ${launcher} -m symbols"
         "SUPER CTRL, N, Toggle nightlight, exec, ${nightlight}"
         "SUPER CTRL SHIFT, SPACE, Theme menu, exec, ${theme.picker} themes"
         "SUPER CTRL, SPACE, Background switcher, exec, ${theme.picker} backgrounds"
@@ -320,7 +326,10 @@ in
       Description = "Elephant, data provider for the Walker launcher";
       PartOf = [ "wayland-session@hyprland.desktop.target" ];
       After = [ "wayland-session@hyprland.desktop.target" ];
-      X-Restart-Triggers = [ "${config.xdg.configFile."elephant/symbols.toml".source}" ];
+      X-Restart-Triggers = [
+        "${config.xdg.configFile."elephant/symbols.toml".source}"
+        "${config.xdg.configFile."elephant/desktopapplications.toml".source}"
+      ];
     };
     Service = {
       ExecStart = "${pkgs.elephant}/bin/elephant";
@@ -355,14 +364,95 @@ in
       PartOf = [ "wayland-session@hyprland.desktop.target" "elephant.service" ];
       After = [ "wayland-session@hyprland.desktop.target" "elephant.service" ];
       Requires = [ "elephant.service" ];
+      X-Restart-Triggers = [
+        "${config.xdg.configFile."walker/config.toml".source}"
+        "${config.xdg.configFile."walker/themes/omarchy-default/style.css".source}"
+      ];
     };
     Service = {
       ExecStart = "${pkgs.walker}/bin/walker --gapplication-service";
+      Environment = [ "GSK_RENDERER=cairo" ];   # as Omarchy starts it
       Restart = "on-failure";
       RestartSec = 1;
     };
     Install.WantedBy = [ "wayland-session@hyprland.desktop.target" ];
   };
+
+  # Omarchy 3's Walker setup (config/walker/config.toml and theme omarchy-default, v3.8.4).
+  # The theme's colours come from the current theme's walker.css.
+  xdg.configFile."walker/config.toml".text = ''
+    force_keyboard_focus = true
+    selection_wrap = true
+    theme = "omarchy-default"
+    hide_action_hints = true
+
+    [placeholders]
+    "default" = { input = " Search...", list = "No Results" }
+
+    [keybinds]
+    quick_activate = []
+
+    [columns]
+    symbols = 1
+
+    [providers]
+    max_results = 256
+    default = [ "desktopapplications", "websearch" ]
+
+    [[providers.prefixes]]
+    prefix = "/"
+    provider = "providerlist"
+
+    [[providers.prefixes]]
+    prefix = "."
+    provider = "files"
+
+    [[providers.prefixes]]
+    prefix = ":"
+    provider = "symbols"
+
+    [[providers.prefixes]]
+    prefix = "="
+    provider = "calc"
+
+    [[providers.prefixes]]
+    prefix = "@"
+    provider = "websearch"
+
+    [[providers.prefixes]]
+    prefix = "$"
+    provider = "clipboard"
+  '';
+
+  xdg.configFile."walker/themes/omarchy-default/layout.xml".source = ./walker/layout.xml;
+  xdg.configFile."walker/themes/omarchy-default/style.css".text = ''
+    @import url("file://${current}/walker.css");
+
+    * { all: unset; }
+    * { font-family: "${font}"; font-size: 18px; color: @text; }
+    scrollbar { opacity: 0; }
+    .normal-icons { -gtk-icon-size: 16px; }
+    .large-icons { -gtk-icon-size: 32px; }
+    .box-wrapper { background: alpha(@base, 0.95); padding: 20px; border: 2px solid @border; }
+    .search-container { background: @base; padding: 10px; }
+    .input placeholder { opacity: 0.5; }
+    .input:focus, .input:active { box-shadow: none; outline: none; }
+    child:selected .item-box * { color: @selected-text; }
+    child:selected { background: alpha(@text, 0.07); }
+    .item-box { padding-left: 14px; }
+    .item-text-box { all: unset; padding: 14px 0; }
+    .item-subtext { font-size: 0px; min-height: 0px; margin: 0px; padding: 0px; }
+    .item-image { margin-right: 14px; -gtk-icon-transform: scale(0.9); }
+    .current { font-style: italic; }
+    .keybind-hints { background: @background; padding: 10px; margin-top: 10px; }
+  '';
+
+  # App search like Omarchy: by title only, no action entries, no history ordering.
+  xdg.configFile."elephant/desktopapplications.toml".text = ''
+    show_actions = false
+    only_search_title = true
+    history = false
+  '';
 
   # Elephant reads one TOML file per provider; it runs "command" with the symbol on stdin.
   xdg.configFile."elephant/symbols.toml".text = ''

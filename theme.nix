@@ -55,6 +55,7 @@ let
     ${pkgs.procps}/bin/pkill -SIGUSR2 waybar || true
     ${pkgs.mako}/bin/makoctl reload || true
     ${restartWallpaper}
+    ${pkgs.systemd}/bin/systemctl --user restart walker.service   # reads its colours at start
     ${pkgs.libnotify}/bin/notify-send -t 2000 "Theme: $(cat ${themes}/themes/"$(cat ${stateDir}/name)"/title)"
   '';
 

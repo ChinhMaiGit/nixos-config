@@ -36,6 +36,13 @@ def waybar(c):
     return "".join(f"@define-color {n} {c[n]};\n" for n in names)
 
 
+def walker(c):
+    # Like Omarchy 3's default/themed/walker.css.tpl
+    return (f"@define-color selected-text {c['accent']};\n@define-color text {c['foreground']};\n"
+            f"@define-color base {c['background']};\n@define-color border {c['foreground']};\n"
+            f"@define-color foreground {c['foreground']};\n@define-color background {c['background']};\n")
+
+
 def mako(c):
     return (
         f"font={FONT} 11\n"
@@ -105,6 +112,7 @@ def main(src, out):
         files = {
             "hyprland.conf": hyprland(c),
             "waybar.css": waybar(c),
+            "walker.css": walker(c),
             "mako.ini": mako(c),
             "alacritty.toml": alacritty(c),
             "hyprlock.conf": hyprlock(c),
