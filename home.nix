@@ -91,11 +91,14 @@
     ExecStartPre=-${pkgs.fontconfig.bin}/bin/fc-cache -f
   '';
 
-  # KDE Wallet off: Chinh uses no password manager. Wi-Fi secrets are system-owned (NM
-  # psk-flags 0) and the Secret Service API was already off, so nothing depends on it.
-  # kwalletrc is rewritten by KDE, so set the key on each activation instead of owning the file.
-  home.activation.disableKWallet = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    run ${pkgs.kdePackages.kconfig}/bin/kwriteconfig6 --file kwalletrc --group Wallet --key Enabled false
+  # KDE Wallet on (2026-10-02): it is the keyring Edge, VS Code, Slack and Discord store their
+  # login keys in; turning it off made Edge hang. SDDM's login (PAM, pam_kwallet5) unlocks it
+  # silently, as long as the wallet password equals the login password. The Secret Service API
+  # lets apps that use the standard Linux keyring (libsecret) save logins too.
+  # kwalletrc is rewritten by KDE, so set the keys on each activation instead of owning the file.
+  home.activation.enableKWallet = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    run ${pkgs.kdePackages.kconfig}/bin/kwriteconfig6 --file kwalletrc --group Wallet --key Enabled true
+    run ${pkgs.kdePackages.kconfig}/bin/kwriteconfig6 --file kwalletrc --group org.freedesktop.secrets --key apiEnabled true
   '';
 
   # Hide apps NixOS's Plasma module installs unconditionally (Skanpage comes with
