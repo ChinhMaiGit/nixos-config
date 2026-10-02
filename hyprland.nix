@@ -142,7 +142,6 @@ in
         # Hand the login password to the KDE Wallet daemon so it unlocks; Plasma does this
         # itself, but its autostart entry isn't run here (gh, Edge, VS Code need the wallet).
         "${pkgs.kdePackages.kwallet-pam}/libexec/pam_kwallet_init"
-        (app "swaybg -i ${theme.stateDir}/background -m fill")
         (app "waybar")
         (app "${mako} -c ${current}/mako.ini")
         (app "swayosd-server")
@@ -153,7 +152,8 @@ in
 
       # PAM starts a wallet daemon per login and Plasma stops it at logout; do the same here,
       # or an old one stays behind after logging out of Hyprland.
-      exec-shutdown = [ "${pkgs.procps}/bin/pkill -u ${config.home.username} -x ksecretd" ];
+      # No -x: NixOS wrappers rename it (".ksecretd-wrapp"), so match part of the name.
+      exec-shutdown = [ "${pkgs.procps}/bin/pkill -u ${config.home.username} ksecretd" ];
 
       input = {
         kb_layout = "us";
@@ -327,6 +327,21 @@ in
       Restart = "on-failure";
       # On restart stop only Elephant, never apps it launched from Walker.
       KillMode = "process";
+    };
+    Install.WantedBy = [ "wayland-session@hyprland.desktop.target" ];
+  };
+
+  # Wallpaper of the current theme. A service, so a theme or wallpaper switch restarts the one
+  # instance instead of starting another.
+  systemd.user.services.swaybg = {
+    Unit = {
+      Description = "Wallpaper (swaybg)";
+      PartOf = [ "wayland-session@hyprland.desktop.target" ];
+      After = [ "wayland-session@hyprland.desktop.target" ];
+    };
+    Service = {
+      ExecStart = "${pkgs.swaybg}/bin/swaybg -i ${theme.stateDir}/background -m fill";
+      Restart = "on-failure";
     };
     Install.WantedBy = [ "wayland-session@hyprland.desktop.target" ];
   };

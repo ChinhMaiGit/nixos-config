@@ -41,9 +41,11 @@ let
   '';
 
   hyprctl = "${pkgs.hyprland}/bin/hyprctl";
+  # swaybg runs as a user service (hyprland.nix) and reads ~/.local/state/theme/background at
+  # start; restarting it shows the new wallpaper. (pkill -x swaybg never matched: NixOS runs it
+  # as ".swaybg-wrapped", so every switch had added another swaybg.)
   restartWallpaper = ''
-    ${pkgs.procps}/bin/pkill -x swaybg || true
-    ${hyprctl} dispatch exec "uwsm app -- swaybg -i ${stateDir}/background -m fill" >/dev/null
+    ${pkgs.systemd}/bin/systemctl --user restart swaybg.service
   '';
 
   # Switch theme and reload what shows it. Alacritty reloads its imported colours by itself.
