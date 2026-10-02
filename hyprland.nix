@@ -86,6 +86,9 @@ in
       ];
 
       exec-once = [
+        # Hand the login password to the KDE Wallet daemon so it unlocks; Plasma does this
+        # itself, but its autostart entry isn't run here (gh, Edge, VS Code need the wallet).
+        "${pkgs.kdePackages.kwallet-pam}/libexec/pam_kwallet_init"
         (app "swaybg -i ${wallpaper} -m fill")
         (app "waybar")
         (app "${mako}")
@@ -95,6 +98,10 @@ in
         (app "elephant")
         (app "walker --gapplication-service")
       ];
+
+      # PAM starts a wallet daemon per login and Plasma stops it at logout; do the same here,
+      # or an old one stays behind after logging out of Hyprland.
+      exec-shutdown = [ "${pkgs.procps}/bin/pkill -u ${config.home.username} -x ksecretd" ];
 
       input = {
         kb_layout = "us";
