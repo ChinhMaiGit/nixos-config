@@ -5,32 +5,14 @@
 #
 # Everything here starts from Hyprland itself (exec-once), not from systemd user services:
 # those would also start inside Plasma, which shares graphical-session.target.
+# Colours and wallpapers come from the current theme (theme.nix, switcher on SUPER+CTRL+SHIFT+SPACE).
 { config, pkgs, lib, ... }:
 
 let
-  # Omarchy's Tokyo Night theme (themes/tokyo-night/colors.toml)
-  c = {
-    bg = "#1a1b26";
-    bgDark = "#13141c";
-    bgLight = "#24283b";
-    selection = "#292e42";
-    muted = "#414868";
-    fg = "#a9b1d6";
-    fgDim = "#565f89";
-    fgBright = "#c0caf5";
-    accent = "#7aa2f7";
-    red = "#f7768e";
-    yellow = "#e0af68";
-    green = "#9ece6a";
-    cyan = "#449dab";
-    magenta = "#bb9af7";
-  };
-  font = "JetBrainsMono Nerd Font";
+  theme = import ./theme.nix { inherit pkgs config; };
+  current = "${theme.stateDir}/current";
 
-  wallpaper = pkgs.fetchurl {
-    url = "https://raw.githubusercontent.com/basecamp/omarchy/821ae589059ffdadc970315f866c94b55d268af7/themes/tokyo-night/backgrounds/1-quattro.webp";
-    hash = "sha256-yblsEG0nWBE5hqjdtiHzhn7fZeCaidrVGrufxfNEcUY=";
-  };
+  font = "JetBrainsMono Nerd Font";
 
   # The Edge launcher in ~/.local/bin keeps Edge's fontconfig cache separate (see home.nix).
   browser = "${config.home.homeDirectory}/.local/bin/microsoft-edge";
@@ -153,13 +135,16 @@ in
         ", preferred, auto, 1"
       ];
 
+      # Border colours of the current theme
+      source = [ "${current}/hyprland.conf" ];
+
       exec-once = [
         # Hand the login password to the KDE Wallet daemon so it unlocks; Plasma does this
         # itself, but its autostart entry isn't run here (gh, Edge, VS Code need the wallet).
         "${pkgs.kdePackages.kwallet-pam}/libexec/pam_kwallet_init"
-        (app "swaybg -i ${wallpaper} -m fill")
+        (app "swaybg -i ${theme.stateDir}/background -m fill")
         (app "waybar")
-        (app "${mako}")
+        (app "${mako} -c ${current}/mako.ini")
         (app "swayosd-server")
         (app "${pkgs.hyprpolkitagent}/libexec/hyprpolkitagent")   # not on PATH
         (app "hypridle")
@@ -181,8 +166,6 @@ in
         gaps_in = 5;
         gaps_out = 10;
         border_size = 2;
-        "col.active_border" = "rgba(33ccffee) rgba(00ff99ee) 45deg";
-        "col.inactive_border" = "rgba(595959aa)";
         resize_on_border = false;
         allow_tearing = false;
         layout = "dwindle";
@@ -286,6 +269,8 @@ in
         "SUPER CTRL, V, Clipboard manager, exec, walker -m clipboard"
         "SUPER CTRL, E, Emojis, exec, walker -m symbols"
         "SUPER CTRL, N, Toggle nightlight, exec, ${nightlight}"
+        "SUPER CTRL SHIFT, SPACE, Theme menu, exec, ${theme.themeMenu}"
+        "SUPER CTRL, SPACE, Next background, exec, ${theme.backgroundNext}"
 
         ", PRINT, Screenshot (select an area), exec, hyprshot -m region -o ${config.home.homeDirectory}/Pictures/Screenshots"
         "SUPER, PRINT, Color picker, exec, pkill hyprpicker || hyprpicker -a"
@@ -372,10 +357,11 @@ in
   programs.hyprlock = {
     enable = true;
     settings = {
+      source = [ "${current}/hyprlock.conf" ];   # $theme_* colours
       general.hide_cursor = true;
       background = [{
         monitor = "";
-        path = "${wallpaper}";
+        path = "${theme.stateDir}/background";
         blur_passes = 3;
       }];
       input-field = [{
@@ -386,11 +372,11 @@ in
         valign = "center";
         outline_thickness = 4;
         rounding = 0;
-        inner_color = "rgba(1a1b26cc)";
-        outer_color = "rgb(7aa2f7)";
-        font_color = "rgb(c0caf5)";
-        check_color = "rgb(9ece6a)";
-        fail_color = "rgb(f7768e)";
+        inner_color = "$theme_inner";
+        outer_color = "$theme_outer";
+        font_color = "$theme_font";
+        check_color = "$theme_check";
+        fail_color = "$theme_fail";
         font_family = font;
         placeholder_text = "Enter password";
         fade_on_empty = false;
@@ -401,6 +387,7 @@ in
   programs.alacritty = {
     enable = true;
     settings = {
+      general.import = [ "${current}/alacritty.toml" ];   # colours, reloaded live
       env.TERM = "xterm-256color";
       font = {
         normal = { family = font; style = "Regular"; };
@@ -411,18 +398,6 @@ in
       window = {
         padding = { x = 14; y = 14; };
         decorations = "None";
-      };
-      colors = {
-        primary = { background = c.bg; foreground = c.fg; };
-        normal = {
-          black = "#15161e"; red = c.red; green = c.green; yellow = c.yellow;
-          blue = c.accent; magenta = c.magenta; cyan = "#7dcfff"; white = c.fg;
-        };
-        bright = {
-          black = c.muted; red = c.red; green = c.green; yellow = c.yellow;
-          blue = c.accent; magenta = c.magenta; cyan = "#7dcfff"; white = c.fgBright;
-        };
-        selection.background = c.selection;
       };
     };
   };
@@ -486,6 +461,8 @@ in
       tray.spacing = 12;
     };
     style = ''
+      @import url("file://${current}/waybar.css");
+
       * {
         font-family: "${font}";
         font-size: 12px;
@@ -493,51 +470,39 @@ in
         border: none;
       }
       window#waybar {
-        background-color: ${c.bg};
-        color: ${c.fg};
+        background-color: @background;
+        color: @foreground;
       }
       #workspaces button {
         padding: 0 6px;
         margin: 0 1.5px;
-        color: ${c.fgDim};
+        color: @dark_foreground;
         background: transparent;
         border-radius: 0;
       }
-      #workspaces button.active { color: ${c.fgBright}; }
+      #workspaces button.active { color: @bright_foreground; }
       #workspaces button.empty { opacity: 0.5; }
-      #workspaces button:hover { background: ${c.selection}; }
+      #workspaces button:hover { background: @selection; }
       #clock { font-weight: bold; }
       #tray, #bluetooth, #network, #pulseaudio, #cpu, #custom-power {
         padding: 0 10px;
       }
       #custom-power { margin-right: 6px; }
       tooltip {
-        background: ${c.bgDark};
-        border: 2px solid ${c.accent};
+        background: @dark_background;
+        border: 2px solid @accent;
       }
     '';
   };
 
   # Mako's package registers it as the D-Bus notification service, so installing it (or
-  # Home Manager's services.mako) could let it start inside Plasma during login. Run it by
-  # store path from Hyprland only, and write its config directly.
-  xdg.configFile."mako/config".text = ''
-    font=${font} 11
-    background-color=${c.bg}
-    text-color=${c.fg}
-    border-color=${c.accent}
-    border-size=2
-    border-radius=0
-    padding=10
-    width=420
-    default-timeout=5000
-    anchor=top-right
-    outer-margin=20
+  # Home Manager's services.mako) could let it start inside Plasma during login. It runs by
+  # store path from Hyprland only, with the current theme's mako.ini (see exec-once).
 
-    [mode=do-not-disturb]
-    invisible=1
+  # Point ~/.local/state/theme at the chosen theme again after each rebuild (the theme
+  # folders move to a new store path), keeping the theme and wallpaper. Also sets the GTK
+  # dark/light preference from the theme, as Omarchy does.
+  home.activation.themeLink = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    run ${theme.link}
   '';
-
-  # Dark GTK apps in this session, like Omarchy.
-  dconf.settings."org/gnome/desktop/interface".color-scheme = "prefer-dark";
 }
