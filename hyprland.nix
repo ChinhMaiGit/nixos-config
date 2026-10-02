@@ -155,6 +155,63 @@ let
   # Font Awesome glyphs from the Nerd Font, written as JSON escapes
   icon = code: builtins.fromJSON ''"\u${code}"'';
 
+  # Settings menu (gear in the top bar, SUPER + ALT + SPACE), like the setup part of Omarchy's
+  # menu: terminal tools for Wi-Fi / Bluetooth / audio as in Omarchy (nmtui instead of impala,
+  # which needs iwd), drives via udisks (Hyprland doesn't auto-mount like Plasma), power
+  # profile, look, and KDE System Settings for the rest while Plasma is installed.
+  settingsMenu = pkgs.writeShellScript "settings-menu" ''
+    pick() { ${launcher} --dmenu -p "$1"; }
+    term() { uwsm app -- alacritty --class "$1" -e "''${@:2}"; }
+    drives() {   # removable partitions as "DEVICE  LABEL  SIZE[  MOUNTPOINT]"; $1 = mounted | unmounted
+      lsblk -J -p -o PATH,HOTPLUG,MOUNTPOINT,LABEL,SIZE,TYPE | ${pkgs.jq}/bin/jq -r --arg want "$1" '
+        .. | objects | select(.type? == "part" and .hotplug == true)
+        | select(($want == "mounted") == (.mountpoint != null))
+        | [.path, (.label // "drive"), .size, (.mountpoint // empty)] | join("  ")'
+    }
+
+    choice=$(printf '%s\n' \
+      "${icon "f1eb"}  Wi-Fi" "${icon "f293"}  Bluetooth" "${icon "f028"}  Audio" \
+      "${icon "f287"}  Mount drive" "${icon "f052"}  Safely remove drive" \
+      "${icon "f0e4"}  Power profile" "${icon "f1fc"}  Theme" "${icon "f03e"}  Background" \
+      "${icon "f186"}  Night light" "${icon "f11c"}  Keybindings" "${icon "f013"}  All settings (KDE)" \
+      | pick Settings) || exit 0
+
+    case "$choice" in
+      *Wi-Fi) term nmtui nmtui connect ;;
+      *Bluetooth) term bluetui ${pkgs.bluetui}/bin/bluetui ;;
+      *Audio) term wiremix wiremix ;;
+      *"Mount drive")
+        d=$(drives unmounted)
+        [ -n "$d" ] || { notify-send -t 3000 "No drive to mount"; exit 0; }
+        dev=$(echo "$d" | pick "Mount") || exit 0
+        out=$(udisksctl mount -b "''${dev%% *}" 2>&1)
+        notify-send -t 4000 "Drive mounted" "$out"
+        uwsm app -- dolphin "$(echo "$out" | sed -n 's/.* at //p')" ;;
+      *"Safely remove drive")
+        d=$(drives mounted)
+        [ -n "$d" ] || { notify-send -t 3000 "No removable drive mounted"; exit 0; }
+        dev=$(echo "$d" | pick "Remove") || exit 0
+        dev=''${dev%% *}
+        if out=$(udisksctl unmount -b "$dev" 2>&1); then
+          disk=/dev/$(lsblk -no PKNAME "$dev")
+          udisksctl power-off -b "$disk" >/dev/null 2>&1
+          notify-send -t 4000 "Safe to remove" "$dev"
+        else
+          notify-send -t 6000 "Drive is busy" "Close the files or windows using it: $out"
+        fi ;;
+      *"Power profile")
+        current=$(powerprofilesctl get)
+        p=$(printf '%s\n' performance balanced power-saver | sed "s/^$current\$/$current  (current)/" \
+          | pick "Power profile") || exit 0
+        powerprofilesctl set "''${p%% *}" && notify-send -t 2000 "Power profile: ''${p%% *}" ;;
+      *Theme) ${theme.picker} themes ;;
+      *Background) ${theme.picker} backgrounds ;;
+      *"Night light") ${nightlight} ;;
+      *Keybindings) ${keybindingsMenu} ;;
+      *"All settings (KDE)") uwsm app -- systemsettings ;;
+    esac
+  '';
+
   workspaceKeys = lib.concatMap (n:
     let key = "code:${toString (n + 9)}"; ws = toString n;
     in [
@@ -273,6 +330,7 @@ in
       bindd = [
         "SUPER, K, Show keybindings, exec, ${keybindingsMenu}"
         "SUPER, SPACE, App launcher, exec, ${launcher}"
+        "SUPER ALT, SPACE, Settings menu, exec, ${settingsMenu}"
         "SUPER, ESCAPE, System menu (lock / sleep / log out / restart / shut down), exec, ${powerMenu}"
         "SUPER, RETURN, Terminal, exec, ${app "alacritty"}"
         "SUPER SHIFT, B, Browser, exec, ${app browser}"
@@ -583,7 +641,7 @@ in
       spacing = 0;
       modules-left = [ "hyprland/workspaces" ];
       modules-center = [ "clock" ];
-      modules-right = [ "tray" "bluetooth" "network" "pulseaudio" "cpu" "custom/power" ];
+      modules-right = [ "tray" "bluetooth" "network" "pulseaudio" "cpu" "custom/settings" "custom/power" ];
 
       "hyprland/workspaces" = {
         on-click = "activate";
@@ -617,13 +675,18 @@ in
         format-disabled = "";
         format-off = "";
         tooltip-format = "{num_connections} connected";
-        on-click = app "systemsettings kcm_bluetooth";
+        on-click = app "alacritty --class bluetui -e ${pkgs.bluetui}/bin/bluetui";
       };
       cpu = {
         interval = 5;
         format = icon "f2db";
         tooltip = true;
         on-click = app "alacritty -e btop";
+      };
+      "custom/settings" = {
+        format = icon "f013";
+        tooltip-format = "Settings";
+        on-click = "${settingsMenu}";
       };
       "custom/power" = {
         format = icon "f011";
@@ -656,7 +719,7 @@ in
       #workspaces button.empty { opacity: 0.5; }
       #workspaces button:hover { background: @selection; }
       #clock { font-weight: bold; }
-      #tray, #bluetooth, #network, #pulseaudio, #cpu, #custom-power {
+      #tray, #bluetooth, #network, #pulseaudio, #cpu, #custom-settings, #custom-power {
         padding: 0 10px;
       }
       #custom-power { margin-right: 6px; }
