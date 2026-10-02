@@ -101,6 +101,13 @@
     run ${pkgs.kdePackages.kconfig}/bin/kwriteconfig6 --file kwalletrc --group org.freedesktop.secrets --key apiEnabled true
   '';
 
+  # Baloo (KDE file search) must never index the rclone OneDrive mount: it downloads cloud
+  # files just to index them, and a hung read there blocked sleep (2026-10-02). The existing
+  # exclude entry wasn't enough on its own, so set it explicitly on each activation.
+  home.activation.balooExcludeOneDrive = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    run ${pkgs.kdePackages.kconfig}/bin/kwriteconfig6 --file baloofilerc --group General --key "exclude folders" "${config.home.homeDirectory}/OneDrive/"
+  '';
+
   # Hide apps NixOS's Plasma module installs unconditionally (Skanpage comes with
   # hardware.sane, KWallet Manager is a required Plasma part); Chinh removed both on Kubuntu.
   xdg.dataFile = lib.genAttrs [
