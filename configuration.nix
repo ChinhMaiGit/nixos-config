@@ -93,6 +93,11 @@
   # reading ~/OneDrive (Baloo, 2026-10-02) waits on the already-frozen rclone and can't freeze
   # itself, so sleep gave up after 100 s and the PC stayed on.
   systemd.services.systemd-suspend.environment.SYSTEMD_SLEEP_FREEZE_USER_SESSIONS = "false";
+  # On kernel 6.18 a program waiting on a FUSE read can't be frozen at all, so any OneDrive
+  # activity (Baloo, Dolphin PDF previews) still blocked sleep. Unmount OneDrive (rclone) just
+  # before sleep and mount it again after waking; "|| true" so a failure never blocks sleep.
+  powerManagement.powerDownCommands = "${pkgs.coreutils}/bin/timeout 20 ${pkgs.systemd}/bin/systemctl --user --machine=chinh@ stop rclone-onedrive.service || true";
+  powerManagement.resumeCommands = "${pkgs.systemd}/bin/systemctl --user --machine=chinh@ start --no-block rclone-onedrive.service || true";
   services.fwupd.enable = true;
   services.power-profiles-daemon.enable = true;
   services.locate = { enable = true; package = pkgs.plocate; };
