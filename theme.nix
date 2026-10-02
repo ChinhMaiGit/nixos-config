@@ -45,7 +45,9 @@ let
     ln -sfn "$(readlink -f "$state/current/backgrounds/$bg")" "$state/background"
     # Font (gear menu > Font): files the apps read next to the theme's colours
     font=$(cat "$state/font" 2>/dev/null || echo "${defaultFont}")
-    printf '* { font-family: "%s"; }\n' "$font" > "$state/font.css"
+    # "window, window *" is more specific than "*", so it survives the launcher theme's
+    # "* { all: unset; }", which CSS forces to come after this imported file.
+    printf 'window, window * { font-family: "%s"; }\n' "$font" > "$state/font.css"
     printf '[font]\nnormal = { family = "%s", style = "Regular" }\nbold = { family = "%s", style = "Bold" }\nitalic = { family = "%s", style = "Italic" }\n' \
       "$font" "$font" "$font" > "$state/font.toml"
     printf '$font = %s\n' "$font" > "$state/font.conf"
