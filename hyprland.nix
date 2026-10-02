@@ -110,7 +110,7 @@ let
     value=$(cat)
     printf '%s' "$value" | ${pkgs.wl-clipboard}/bin/wl-copy
     sleep 0.2   # let Walker close so the previous window has keyboard focus again
-    class=$(hyprctl activewindow -j | ${pkgs.jq}/bin/jq -r '.class // ""')
+    class=$(${pkgs.hyprland}/bin/hyprctl activewindow -j | ${pkgs.jq}/bin/jq -r '.class // ""')
     case "$class" in
       Alacritty|org.kde.konsole|kitty|foot|com.mitchellh.ghostty)
         ${pkgs.wtype}/bin/wtype -M ctrl -M shift v -m shift -m ctrl ;;
@@ -163,7 +163,6 @@ in
         (app "swayosd-server")
         (app "${pkgs.hyprpolkitagent}/libexec/hyprpolkitagent")   # not on PATH
         (app "hypridle")
-        (app "elephant")
         (app "hyprsunset")
         (app "walker --gapplication-service")
       ];
@@ -328,6 +327,25 @@ in
     export QT_QPA_PLATFORMTHEME=kde
     export ELECTRON_OZONE_PLATFORM_HINT=wayland
   '';
+
+  # Elephant (Walker's backend) as a service of the Hyprland session only (UWSM's target; not
+  # graphical-session.target, which Plasma shares). It reads its config only at start, so the
+  # config path is a restart trigger: a rebuild that changes it restarts Elephant.
+  systemd.user.services.elephant = {
+    Unit = {
+      Description = "Elephant, data provider for the Walker launcher";
+      PartOf = [ "wayland-session@hyprland.desktop.target" ];
+      After = [ "wayland-session@hyprland.desktop.target" ];
+      X-Restart-Triggers = [ "${config.xdg.configFile."elephant/symbols.toml".source}" ];
+    };
+    Service = {
+      ExecStart = "${pkgs.elephant}/bin/elephant";
+      Restart = "on-failure";
+      # On restart stop only Elephant, never apps it launched from Walker.
+      KillMode = "process";
+    };
+    Install.WantedBy = [ "wayland-session@hyprland.desktop.target" ];
+  };
 
   # Elephant reads one TOML file per provider; it runs "command" with the symbol on stdin.
   xdg.configFile."elephant/symbols.toml".text = ''
