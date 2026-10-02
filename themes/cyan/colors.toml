@@ -1,0 +1,38 @@
+# Cyan: a dark theme made from ~/Pictures/Wallpaper.jpg and Wallpaper2.png (2026-10-02).
+# Accent = the glowing cyan of the first picture; background and text from its night room;
+# red / yellow / blue / green from the lanterns, sunset and sky of the second, brightened to
+# stay readable. Same keys as Omarchy's themes/<name>/colors.toml.
+mode = "dark"
+
+accent = "#54c8cf"
+selection = "#1f334e"
+muted = "#4f646b"
+
+background = "#0b1219"
+dark_background = "#070b10"
+darker_background = "#04070a"
+lighter_background = "#15222f"
+
+foreground = "#b1d2d5"
+dark_foreground = "#6598a3"
+light_foreground = "#c7e3e6"
+bright_foreground = "#e0f4f5"
+
+red = "#d9644f"
+yellow = "#dcab66"
+orange = "#e0955a"
+green = "#6cbf95"
+cyan = "#3ab3b7"
+blue = "#6f8fd6"
+magenta = "#9b8fe0"
+brown = "#954c3c"
+
+bright_red = "#f08070"
+bright_yellow = "#f0c87e"
+bright_green = "#8fd9b0"
+bright_cyan = "#84d5d9"
+bright_blue = "#8fb0f0"
+bright_magenta = "#b8adf0"
+
+# Window borders: light cyan to teal, like the glow fading into the room
+hyprland_active_border = "rgba(84d5d9ee) rgba(3ab3b7ee) 45deg"

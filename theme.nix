@@ -1,4 +1,4 @@
-# Omarchy's themes for the Hyprland session, with a live theme switcher.
+# Omarchy's themes (and Chinh's own in ./themes) for the Hyprland session, with a live theme switcher.
 #
 # At build time every theme in basecamp/omarchy (themes/<name>/colors.toml, MIT) becomes a
 # folder of colour files for Hyprland, Waybar, Mako, Alacritty and Hyprlock, like Omarchy's
@@ -17,8 +17,14 @@ let
   stateDir = "${config.xdg.stateHome}/theme";
   defaultTheme = "tokyo-night";
 
+  # Omarchy's themes plus Chinh's own (./themes/<name>/colors.toml + backgrounds/)
+  themeSources = pkgs.runCommand "theme-sources" { } ''
+    mkdir $out
+    for d in ${omarchy}/themes/* ${./themes}/*; do ln -s "$d" $out/; done
+  '';
+
   themes = pkgs.runCommand "omarchy-themes" { nativeBuildInputs = [ pkgs.python3 ]; } ''
-    python3 ${./theme-generate.py} ${omarchy}/themes $out
+    python3 ${./theme-generate.py} ${themeSources} $out
   '';
 
   # Points ~/.local/state/theme at a theme (and a wallpaper of it). Keeps the current

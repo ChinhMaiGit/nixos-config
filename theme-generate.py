@@ -145,14 +145,7 @@ def pickers(themes, out):
     each theme's wallpapers. Thumbnails are PNG because Qt here has no WebP image plugin."""
     names = [n.strip() for n in open(os.path.join(themes, "list")) if n.strip()]
     os.makedirs(os.path.join(out, "pickers"))
-    theme_items = []
-    for name in names:
-        d = os.path.join(themes, "themes", name)
-        theme_items.append({"label": open(os.path.join(d, "title")).read().strip(),
-                            "image": os.path.join(d, "preview.png"), "value": name})
-    with open(os.path.join(out, "pickers", "themes.json"), "w") as f:
-        json.dump(theme_items, f)
-
+    first_thumb = {}
     for name in names:
         bg_dir = os.path.join(themes, "themes", name, "backgrounds")
         thumbs = os.path.join(out, "thumbs", name)
@@ -165,6 +158,18 @@ def pickers(themes, out):
             items.append({"label": background_title(filename), "image": thumb, "value": filename})
         with open(os.path.join(out, "pickers", f"backgrounds-{name}.json"), "w") as f:
             json.dump(items, f)
+        first_thumb[name] = items[0]["image"]
+
+    # Themes show Omarchy's preview screenshot; own themes without one show their first wallpaper.
+    theme_items = []
+    for name in names:
+        d = os.path.join(themes, "themes", name)
+        preview = os.path.join(d, "preview.png")
+        theme_items.append({"label": open(os.path.join(d, "title")).read().strip(),
+                            "image": preview if os.path.exists(preview) else first_thumb[name],
+                            "value": name})
+    with open(os.path.join(out, "pickers", "themes.json"), "w") as f:
+        json.dump(theme_items, f)
 
 
 if __name__ == "__main__":
