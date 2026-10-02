@@ -51,15 +51,49 @@ let
     esac
   '';
 
+  # SUPER + K, like Omarchy's omarchy-menu-keybindings: every described shortcut from the
+  # running Hyprland, searchable in Walker; choosing one also runs it.
+  keybindingsMenu = pkgs.writeShellScript "keybindings-menu" ''
+    binds=$(hyprctl -j binds)
+    mapfile -t lines < <(${pkgs.jq}/bin/jq -r '
+      def bit($b): ((.modmask / $b) | floor) % 2 == 1;
+      def keyname:
+        if .keycode > 0 and (.key == "" or (.key | startswith("code:"))) then
+          ({"10":"1","11":"2","12":"3","13":"4","14":"5","15":"6","16":"7","17":"8","18":"9","19":"0",
+            "20":"MINUS","21":"EQUAL"}[.keycode | tostring] // "code:\(.keycode)")
+        elif .key == "mouse:272" then "LEFT MOUSE BUTTON"
+        elif .key == "mouse:273" then "RIGHT MOUSE BUTTON"
+        elif .key == "mouse_down" then "SCROLL DOWN"
+        elif .key == "mouse_up" then "SCROLL UP"
+        else .key | ascii_upcase end;
+      .[] | select(.has_description)
+      | ([ (if bit(64) then "SUPER" else empty end), (if bit(4) then "CTRL" else empty end),
+           (if bit(8) then "ALT" else empty end), (if bit(1) then "SHIFT" else empty end),
+           keyname ] | join(" + ")) + "  →  " + .description
+    ' <<<"$binds")
+    mapfile -t actions < <(${pkgs.jq}/bin/jq -r '
+      .[] | select(.has_description) | if .mouse then "" else "\(.dispatcher)\t\(.arg)" end
+    ' <<<"$binds")
+
+    choice=$(printf '%s\n' "''${lines[@]}" | walker --dmenu) || exit 0
+    for i in "''${!lines[@]}"; do
+      if [[ "''${lines[$i]}" == "$choice" && -n "''${actions[$i]}" ]]; then
+        IFS=$'\t' read -r dispatcher arg <<<"''${actions[$i]}"
+        hyprctl dispatch "$dispatcher" "$arg" >/dev/null
+        break
+      fi
+    done
+  '';
+
   # Font Awesome glyphs from the Nerd Font, written as JSON escapes
   icon = code: builtins.fromJSON ''"\u${code}"'';
 
   workspaceKeys = lib.concatMap (n:
     let key = "code:${toString (n + 9)}"; ws = toString n;
     in [
-      "SUPER, ${key}, workspace, ${ws}"
-      "SUPER SHIFT, ${key}, movetoworkspace, ${ws}"
-      "SUPER SHIFT ALT, ${key}, movetoworkspacesilent, ${ws}"
+      "SUPER, ${key}, Switch to workspace ${ws}, workspace, ${ws}"
+      "SUPER SHIFT, ${key}, Move window to workspace ${ws}, movetoworkspace, ${ws}"
+      "SUPER SHIFT ALT, ${key}, Move window silently to workspace ${ws}, movetoworkspacesilent, ${ws}"
     ]) (lib.range 1 10);
 in
 {
@@ -163,80 +197,82 @@ in
       xwayland.force_zero_scaling = true;
       ecosystem.no_update_news = true;
 
-      # Omarchy's keybindings (default/hypr/bindings), with Chinh's apps.
-      bind = [
-        "SUPER, RETURN, exec, ${app "alacritty"}"
-        "SUPER SHIFT, RETURN, exec, ${app browser}"
-        "SUPER SHIFT, B, exec, ${app browser}"
-        "SUPER SHIFT, F, exec, ${app "dolphin"}"
-        "SUPER SHIFT, N, exec, ${app "code"}"
-        "SUPER, SPACE, exec, walker"
-        "SUPER, ESCAPE, exec, ${powerMenu}"
+      # Omarchy's keybindings (default/hypr/bindings), with Chinh's apps. The "d" variants
+      # (bindd, bindmd, ...) carry a description, which the SUPER + K list shows.
+      bindd = [
+        "SUPER, K, Show keybindings, exec, ${keybindingsMenu}"
+        "SUPER, SPACE, App launcher, exec, walker"
+        "SUPER, ESCAPE, System menu (lock / suspend / log out / restart / shut down), exec, ${powerMenu}"
+        "SUPER, RETURN, Terminal, exec, ${app "alacritty"}"
+        "SUPER SHIFT, RETURN, Browser, exec, ${app browser}"
+        "SUPER SHIFT, B, Browser, exec, ${app browser}"
+        "SUPER SHIFT, F, File manager, exec, ${app "dolphin"}"
+        "SUPER SHIFT, N, Editor, exec, ${app "code"}"
 
-        "SUPER, W, killactive,"
-        "SUPER, Q, killactive,"
-        "SUPER, J, layoutmsg, togglesplit"
-        "SUPER, P, pseudo,"
-        "SUPER, T, togglefloating,"
-        "SUPER, F, fullscreen, 0"
-        "SUPER ALT, F, fullscreen, 1"
+        "SUPER, W, Close window, killactive,"
+        "SUPER, Q, Close window, killactive,"
+        "SUPER, J, Toggle window split, layoutmsg, togglesplit"
+        "SUPER, P, Pseudo window, pseudo,"
+        "SUPER, T, Toggle window floating/tiling, togglefloating,"
+        "SUPER, F, Full screen, fullscreen, 0"
+        "SUPER ALT, F, Full width, fullscreen, 1"
 
-        "SUPER, left, movefocus, l"
-        "SUPER, right, movefocus, r"
-        "SUPER, up, movefocus, u"
-        "SUPER, down, movefocus, d"
-        "SUPER SHIFT, left, swapwindow, l"
-        "SUPER SHIFT, right, swapwindow, r"
-        "SUPER SHIFT, up, swapwindow, u"
-        "SUPER SHIFT, down, swapwindow, d"
+        "SUPER, left, Focus on left window, movefocus, l"
+        "SUPER, right, Focus on right window, movefocus, r"
+        "SUPER, up, Focus on above window, movefocus, u"
+        "SUPER, down, Focus on below window, movefocus, d"
+        "SUPER SHIFT, left, Swap window to the left, swapwindow, l"
+        "SUPER SHIFT, right, Swap window to the right, swapwindow, r"
+        "SUPER SHIFT, up, Swap window up, swapwindow, u"
+        "SUPER SHIFT, down, Swap window down, swapwindow, d"
+      ] ++ workspaceKeys ++ [
+        "SUPER, S, Toggle scratchpad, togglespecialworkspace, scratchpad"
+        "SUPER ALT, S, Move window to scratchpad, movetoworkspacesilent, special:scratchpad"
+        "SUPER, TAB, Next workspace, workspace, e+1"
+        "SUPER SHIFT, TAB, Previous workspace, workspace, e-1"
+        "SUPER CTRL, TAB, Former workspace, workspace, previous"
+        "SUPER, mouse_down, Scroll active workspace forward, workspace, e+1"
+        "SUPER, mouse_up, Scroll active workspace backward, workspace, e-1"
+        "SUPER SHIFT ALT, left, Move workspace to left monitor, movecurrentworkspacetomonitor, l"
+        "SUPER SHIFT ALT, right, Move workspace to right monitor, movecurrentworkspacetomonitor, r"
 
-        "SUPER, S, togglespecialworkspace, scratchpad"
-        "SUPER ALT, S, movetoworkspacesilent, special:scratchpad"
-        "SUPER, TAB, workspace, e+1"
-        "SUPER SHIFT, TAB, workspace, e-1"
-        "SUPER CTRL, TAB, workspace, previous"
-        "SUPER, mouse_down, workspace, e+1"
-        "SUPER, mouse_up, workspace, e-1"
-        "SUPER SHIFT ALT, left, movecurrentworkspacetomonitor, l"
-        "SUPER SHIFT ALT, right, movecurrentworkspacetomonitor, r"
-
-        "ALT, TAB, cyclenext,"
-        "ALT, TAB, bringactivetotop,"
-        "ALT SHIFT, TAB, cyclenext, prev"
-        "ALT SHIFT, TAB, bringactivetotop,"
-        "CTRL ALT, TAB, focusmonitor, +1"
+        "ALT, TAB, Focus on next window, cyclenext,"
+        "ALT, TAB, Reveal active window on top, bringactivetotop,"
+        "ALT SHIFT, TAB, Focus on previous window, cyclenext, prev"
+        "ALT SHIFT, TAB, Reveal active window on top, bringactivetotop,"
+        "CTRL ALT, TAB, Focus on next monitor, focusmonitor, +1"
 
         # code:20 / code:21 are the minus and equals keys
-        "SUPER, code:20, resizeactive, -100 0"
-        "SUPER, code:21, resizeactive, 100 0"
-        "SUPER SHIFT, code:20, resizeactive, 0 -100"
-        "SUPER SHIFT, code:21, resizeactive, 0 100"
+        "SUPER, code:20, Expand window left, resizeactive, -100 0"
+        "SUPER, code:21, Shrink window left, resizeactive, 100 0"
+        "SUPER SHIFT, code:20, Shrink window up, resizeactive, 0 -100"
+        "SUPER SHIFT, code:21, Expand window down, resizeactive, 0 100"
 
-        "SUPER, comma, exec, ${makoctl} dismiss"
-        "SUPER SHIFT, comma, exec, ${makoctl} dismiss --all"
-        "SUPER CTRL, comma, exec, ${makoctl} mode -t do-not-disturb"
-        "SUPER SHIFT, SPACE, exec, pkill -SIGUSR1 waybar"
+        "SUPER, comma, Dismiss last notification, exec, ${makoctl} dismiss"
+        "SUPER SHIFT, comma, Dismiss all notifications, exec, ${makoctl} dismiss --all"
+        "SUPER CTRL, comma, Toggle silencing notifications, exec, ${makoctl} mode -t do-not-disturb"
+        "SUPER SHIFT, SPACE, Toggle top bar, exec, pkill -SIGUSR1 waybar"
 
-        ", PRINT, exec, hyprshot -m region -o ${config.home.homeDirectory}/Pictures/Screenshots"
-        "SUPER, PRINT, exec, pkill hyprpicker || hyprpicker -a"
-      ] ++ workspaceKeys;
+        ", PRINT, Screenshot (select an area), exec, hyprshot -m region -o ${config.home.homeDirectory}/Pictures/Screenshots"
+        "SUPER, PRINT, Color picker, exec, pkill hyprpicker || hyprpicker -a"
+      ];
 
-      bindm = [
-        "SUPER, mouse:272, movewindow"
-        "SUPER, mouse:273, resizewindow"
+      bindmd = [
+        "SUPER, mouse:272, Move window, movewindow"
+        "SUPER, mouse:273, Resize window, resizewindow"
       ];
 
       # Volume keys with the on-screen display; repeat while held, work on the lock screen.
-      bindel = [
-        ", XF86AudioRaiseVolume, exec, swayosd-client --output-volume raise"
-        ", XF86AudioLowerVolume, exec, swayosd-client --output-volume lower"
+      bindeld = [
+        ", XF86AudioRaiseVolume, Volume up, exec, swayosd-client --output-volume raise"
+        ", XF86AudioLowerVolume, Volume down, exec, swayosd-client --output-volume lower"
       ];
-      bindl = [
-        ", XF86AudioMute, exec, swayosd-client --output-volume mute-toggle"
-        ", XF86AudioMicMute, exec, swayosd-client --input-volume mute-toggle"
-        ", XF86AudioPlay, exec, playerctl play-pause"
-        ", XF86AudioNext, exec, playerctl next"
-        ", XF86AudioPrev, exec, playerctl previous"
+      bindld = [
+        ", XF86AudioMute, Mute, exec, swayosd-client --output-volume mute-toggle"
+        ", XF86AudioMicMute, Mute microphone, exec, swayosd-client --input-volume mute-toggle"
+        ", XF86AudioPlay, Play / pause, exec, playerctl play-pause"
+        ", XF86AudioNext, Next track, exec, playerctl next"
+        ", XF86AudioPrev, Previous track, exec, playerctl previous"
       ];
     };
   };
