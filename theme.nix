@@ -62,46 +62,39 @@ let
     ${restartWallpaper}
   '';
 
-  # Walker menus (Elephant "menus" provider) with preview images: themes, and the wallpapers
-  # of each theme. Opened by SUPER + CTRL + SHIFT + SPACE and SUPER + CTRL + SPACE.
-  menus = pkgs.runCommand "omarchy-theme-menus"
+  # Lists (and wallpaper thumbnails) for the image picker
+  pickerData = pkgs.runCommand "omarchy-theme-pickers"
     { nativeBuildInputs = [ pkgs.python3 pkgs.imagemagick ]; } ''
-    python3 ${./theme-generate.py} menus ${themes} ${themeSet} ${backgroundSet} $out
+    python3 ${./theme-generate.py} pickers ${themes} $out
   '';
 
-  backgroundMenu = pkgs.writeShellScript "background-menu" ''
-    exec walker -m "menus:backgrounds-$(cat ${stateDir}/name)"
-  '';
-
-  # Plain list version, kept for reference: SUPER + CTRL + SHIFT + SPACE, like Omarchy's theme menu
-  themeMenu = pkgs.writeShellScript "theme-menu" ''
-    current=$(cat ${stateDir}/name 2>/dev/null)
-    mapfile -t names < ${themes}/list
-    titles=()
-    for n in "''${names[@]}"; do
-      t=$(cat ${themes}/themes/"$n"/title)
-      [ "$n" = "$current" ] && t="$t  (current)"
-      titles+=("$t")
-    done
-    choice=$(printf '%s\n' "''${titles[@]}" | walker --dmenu -p Theme) || exit 0
-    for i in "''${!titles[@]}"; do
-      [ "''${titles[$i]}" = "$choice" ] && exec ${themeSet} "''${names[$i]}"
-    done
-  '';
-
-  # SUPER + CTRL + SPACE: next wallpaper of the current theme
-  backgroundNext = pkgs.writeShellScript "background-next" ''
+  # Omarchy-style image carousel (picker.qml, Quickshell) for themes or the current theme's
+  # wallpapers: SUPER + CTRL + SHIFT + SPACE and SUPER + CTRL + SPACE.
+  picker = pkgs.writeShellScript "picker" ''
     state=${stateDir}
-    mapfile -t bgs < <(ls "$state/current/backgrounds")
-    cur=$(basename "$(readlink "$state/background")")
-    next=''${bgs[0]}
-    for i in "''${!bgs[@]}"; do
-      if [ "''${bgs[$i]}" = "$cur" ]; then next=''${bgs[$(( (i + 1) % ''${#bgs[@]} ))]}; fi
-    done
-    ln -sfn "$(readlink -f "$state/current/backgrounds/$next")" "$state/background"
-    ${restartWallpaper}
+    colors=$state/current/colors.json
+    jq=${pkgs.jq}/bin/jq
+    case "$1" in
+      themes)
+        items=${pickerData}/pickers/themes.json
+        selected=$(cat "$state/name")
+        command=${themeSet} ;;
+      backgrounds)
+        items=${pickerData}/pickers/backgrounds-$(cat "$state/name").json
+        selected=$(basename "$(readlink "$state/background")")
+        command=${backgroundSet} ;;
+      *) exit 1 ;;
+    esac
+    PICKER_ITEMS=$(cat "$items") \
+    PICKER_SELECTED=$selected \
+    PICKER_COMMAND=$command \
+    PICKER_ACCENT=$($jq -r .accent "$colors") \
+    PICKER_BACKGROUND=$($jq -r .background "$colors") \
+    PICKER_FOREGROUND=$($jq -r .bright_foreground "$colors") \
+      exec ${pkgs.quickshell}/bin/qs --no-duplicate -p ${./picker.qml}
   '';
+
 in
 {
-  inherit themes stateDir link themeSet themeMenu backgroundNext menus backgroundMenu;
+  inherit themes stateDir link picker;
 }

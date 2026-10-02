@@ -1,7 +1,7 @@
 """Turn Omarchy's themes/<name>/colors.toml into colour files for the Hyprland session.
 
 Usage: theme-generate.py <omarchy themes dir> <output dir>
-       theme-generate.py menus <generated themes> <theme-set> <background-set> <output dir>
+       theme-generate.py pickers <generated themes> <output dir>
 Output: <out>/list (theme names) and <out>/themes/<name>/ with hyprland.conf, waybar.css,
 mako.ini, alacritty.toml, hyprlock.conf, mode, title and a backgrounds/ link.
 """
@@ -110,6 +110,7 @@ def main(src, out):
             "hyprlock.conf": hyprlock(c),
             "mode": c.get("mode", "dark") + "\n",
             "title": title(name) + "\n",
+            "colors.json": json.dumps(c) + "\n",
         }
         for filename, text in files.items():
             with open(os.path.join(d, filename), "w") as f:
@@ -122,10 +123,6 @@ def main(src, out):
         f.write("".join(n + "\n" for n in names))
 
 
-def toml_str(value):
-    return json.dumps(value, ensure_ascii=False)
-
-
 def background_title(filename):
     # "1-quattro.webp" -> "Quattro", "5-oma-cityscape.jpg" -> "Oma Cityscape"
     stem = os.path.splitext(filename)[0]
@@ -135,51 +132,35 @@ def background_title(filename):
     return " ".join(p.capitalize() for p in parts)
 
 
-def menus(themes, theme_set, background_set, out):
-    """Elephant menus with previews: the theme picker and one wallpaper picker per theme.
-    Walker can't load WebP, so wallpapers get small PNG thumbnails."""
+def pickers(themes, out):
+    """Item lists for the image picker (picker.qml): themes with Omarchy's preview images, and
+    each theme's wallpapers. Thumbnails are PNG because Qt here has no WebP image plugin."""
     names = [n.strip() for n in open(os.path.join(themes, "list")) if n.strip()]
-    os.makedirs(os.path.join(out, "menus"))
-    lines = [
-        'name = "themes"', 'name_pretty = "Themes"', 'icon = "preferences-desktop-theme"',
-        f"action = {toml_str(theme_set + ' %VALUE%')}", "fixed_order = true",
-        "hide_from_providerlist = true", "",
-    ]
+    os.makedirs(os.path.join(out, "pickers"))
+    theme_items = []
     for name in names:
         d = os.path.join(themes, "themes", name)
-        title_text = open(os.path.join(d, "title")).read().strip()
-        mode = open(os.path.join(d, "mode")).read().strip()
-        lines += ["[[entries]]", f"text = {toml_str(title_text)}", f"subtext = {toml_str(mode)}",
-                  f"value = {toml_str(name)}", f"keywords = {toml_str([name, mode])}"]
-        if os.path.exists(os.path.join(d, "preview.png")):
-            lines += [f"preview = {toml_str(os.path.join(d, 'preview.png'))}", 'preview_type = "file"']
-        lines.append("")
-    with open(os.path.join(out, "menus", "themes.toml"), "w") as f:
-        f.write("\n".join(lines))
+        theme_items.append({"label": open(os.path.join(d, "title")).read().strip(),
+                            "image": os.path.join(d, "preview.png"), "value": name})
+    with open(os.path.join(out, "pickers", "themes.json"), "w") as f:
+        json.dump(theme_items, f)
 
     for name in names:
         bg_dir = os.path.join(themes, "themes", name, "backgrounds")
         thumbs = os.path.join(out, "thumbs", name)
         os.makedirs(thumbs)
-        lines = [
-            f"name = {toml_str('backgrounds-' + name)}", 'name_pretty = "Backgrounds"',
-            'icon = "preferences-desktop-wallpaper"',
-            f"action = {toml_str(background_set + ' %VALUE%')}", "fixed_order = true",
-            "hide_from_providerlist = true", "",
-        ]
+        items = []
         for filename in sorted(os.listdir(bg_dir)):
             thumb = os.path.join(thumbs, os.path.splitext(filename)[0] + ".png")
-            subprocess.run(["magick", os.path.join(bg_dir, filename), "-resize", "800x450^",
-                            "-gravity", "center", "-extent", "800x450", thumb], check=True)
-            lines += ["[[entries]]", f"text = {toml_str(background_title(filename))}",
-                      f"value = {toml_str(filename)}", f"preview = {toml_str(thumb)}",
-                      'preview_type = "file"', ""]
-        with open(os.path.join(out, "menus", f"backgrounds-{name}.toml"), "w") as f:
-            f.write("\n".join(lines))
+            subprocess.run(["magick", os.path.join(bg_dir, filename), "-resize", "768x475^",
+                            "-gravity", "center", "-extent", "768x475", thumb], check=True)
+            items.append({"label": background_title(filename), "image": thumb, "value": filename})
+        with open(os.path.join(out, "pickers", f"backgrounds-{name}.json"), "w") as f:
+            json.dump(items, f)
 
 
 if __name__ == "__main__":
-    if sys.argv[1] == "menus":
-        menus(*sys.argv[2:6])
+    if sys.argv[1] == "pickers":
+        pickers(sys.argv[2], sys.argv[3])
     else:
         main(sys.argv[1], sys.argv[2])
