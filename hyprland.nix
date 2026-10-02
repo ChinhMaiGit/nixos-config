@@ -269,8 +269,8 @@ in
         "SUPER CTRL, V, Clipboard manager, exec, walker -m clipboard"
         "SUPER CTRL, E, Emojis, exec, walker -m symbols"
         "SUPER CTRL, N, Toggle nightlight, exec, ${nightlight}"
-        "SUPER CTRL SHIFT, SPACE, Theme menu, exec, ${theme.themeMenu}"
-        "SUPER CTRL, SPACE, Next background, exec, ${theme.backgroundNext}"
+        "SUPER CTRL SHIFT, SPACE, Theme menu, exec, walker -m menus:themes"
+        "SUPER CTRL, SPACE, Background switcher, exec, ${theme.backgroundMenu}"
 
         ", PRINT, Screenshot (select an area), exec, hyprshot -m region -o ${config.home.homeDirectory}/Pictures/Screenshots"
         "SUPER, PRINT, Color picker, exec, pkill hyprpicker || hyprpicker -a"
@@ -321,7 +321,10 @@ in
       Description = "Elephant, data provider for the Walker launcher";
       PartOf = [ "wayland-session@hyprland.desktop.target" ];
       After = [ "wayland-session@hyprland.desktop.target" ];
-      X-Restart-Triggers = [ "${config.xdg.configFile."elephant/symbols.toml".source}" ];
+      X-Restart-Triggers = [
+        "${config.xdg.configFile."elephant/symbols.toml".source}"
+        "${theme.menus}"
+      ];
     };
     Service = {
       ExecStart = "${pkgs.elephant}/bin/elephant";
@@ -331,6 +334,9 @@ in
     };
     Install.WantedBy = [ "wayland-session@hyprland.desktop.target" ];
   };
+
+  # Theme and wallpaper pickers with previews (generated in theme.nix)
+  xdg.configFile."elephant/menus".source = "${theme.menus}/menus";
 
   # Elephant reads one TOML file per provider; it runs "command" with the symbol on stdin.
   xdg.configFile."elephant/symbols.toml".text = ''

@@ -40,22 +40,40 @@ let
     ${pkgs.dconf}/bin/dconf write /org/gnome/desktop/interface/color-scheme "'$scheme'" 2>/dev/null || true
   '';
 
+  hyprctl = "${pkgs.hyprland}/bin/hyprctl";
   restartWallpaper = ''
-    pkill -x swaybg || true
-    hyprctl dispatch exec "uwsm app -- swaybg -i ${stateDir}/background -m fill" >/dev/null
+    ${pkgs.procps}/bin/pkill -x swaybg || true
+    ${hyprctl} dispatch exec "uwsm app -- swaybg -i ${stateDir}/background -m fill" >/dev/null
   '';
 
   # Switch theme and reload what shows it. Alacritty reloads its imported colours by itself.
   themeSet = pkgs.writeShellScript "theme-set" ''
     ${link} "$1"
-    hyprctl reload >/dev/null
-    pkill -SIGUSR2 waybar || true
+    ${hyprctl} reload >/dev/null
+    ${pkgs.procps}/bin/pkill -SIGUSR2 waybar || true
     ${pkgs.mako}/bin/makoctl reload || true
     ${restartWallpaper}
-    notify-send -t 2000 "Theme: $(cat ${themes}/themes/"$(cat ${stateDir}/name)"/title)"
+    ${pkgs.libnotify}/bin/notify-send -t 2000 "Theme: $(cat ${themes}/themes/"$(cat ${stateDir}/name)"/title)"
   '';
 
-  # SUPER + CTRL + SHIFT + SPACE, like Omarchy's theme menu
+  # Set a wallpaper of the current theme by file name (from the background menu)
+  backgroundSet = pkgs.writeShellScript "background-set" ''
+    ln -sfn "$(readlink -f ${stateDir}/current/backgrounds/"$1")" ${stateDir}/background
+    ${restartWallpaper}
+  '';
+
+  # Walker menus (Elephant "menus" provider) with preview images: themes, and the wallpapers
+  # of each theme. Opened by SUPER + CTRL + SHIFT + SPACE and SUPER + CTRL + SPACE.
+  menus = pkgs.runCommand "omarchy-theme-menus"
+    { nativeBuildInputs = [ pkgs.python3 pkgs.imagemagick ]; } ''
+    python3 ${./theme-generate.py} menus ${themes} ${themeSet} ${backgroundSet} $out
+  '';
+
+  backgroundMenu = pkgs.writeShellScript "background-menu" ''
+    exec walker -m "menus:backgrounds-$(cat ${stateDir}/name)"
+  '';
+
+  # Plain list version, kept for reference: SUPER + CTRL + SHIFT + SPACE, like Omarchy's theme menu
   themeMenu = pkgs.writeShellScript "theme-menu" ''
     current=$(cat ${stateDir}/name 2>/dev/null)
     mapfile -t names < ${themes}/list
@@ -85,5 +103,5 @@ let
   '';
 in
 {
-  inherit themes stateDir link themeSet themeMenu backgroundNext;
+  inherit themes stateDir link themeSet themeMenu backgroundNext menus backgroundMenu;
 }
