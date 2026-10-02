@@ -173,7 +173,8 @@ let
       "${icon "f1eb"}  Wi-Fi" "${icon "f293"}  Bluetooth" "${icon "f028"}  Audio" \
       "${icon "f287"}  Mount drive" "${icon "f052"}  Safely remove drive" \
       "${icon "f0e4"}  Power profile" "${icon "f1fc"}  Theme" "${icon "f03e"}  Background" \
-      "${icon "f186"}  Night light" "${icon "f11c"}  Keybindings" "${icon "f013"}  All settings (KDE)" \
+      "${icon "f186"}  Night light" "${icon "f031"}  Font" "${icon "f0e7"}  Speed test" \
+      "${icon "f11c"}  Keybindings" "${icon "f013"}  All settings (KDE)" \
       | pick Settings) || exit 0
 
     case "$choice" in
@@ -207,6 +208,12 @@ let
       *Theme) ${theme.picker} themes ;;
       *Background) ${theme.picker} backgrounds ;;
       *"Night light") ${nightlight} ;;
+      *Font)   # installed Nerd Fonts (they carry the icons the top bar uses), like omarchy-font-list
+        current=$(cat ${theme.stateDir}/font 2>/dev/null || echo "${font}")
+        f=$(fc-list :spacing=100 -f '%{family[0]}\n' | grep -E 'Nerd Font$' | sort -u \
+          | sed "s/^$current\$/$current  (current)/" | pick Font) || exit 0
+        ${theme.fontSet} "''${f%  (current)}" ;;
+      *"Speed test") uwsm app -- alacritty --class speedtest --hold -e ${pkgs.speedtest-go}/bin/speedtest-go ;;
       *Keybindings) ${keybindingsMenu} ;;
       *"All settings (KDE)") uwsm app -- systemsettings ;;
     esac
@@ -251,7 +258,7 @@ in
         # itself, but its autostart entry isn't run here (gh, Edge, VS Code need the wallet).
         "${pkgs.kdePackages.kwallet-pam}/libexec/pam_kwallet_init"
         (app "waybar")
-        (app "${mako} -c ${current}/mako.ini")
+        (app "${mako} -c ${theme.stateDir}/mako.ini")   # theme colours + chosen font
         (app "swayosd-server")
         (app "${pkgs.hyprpolkitagent}/libexec/hyprpolkitagent")   # not on PATH
         (app "hypridle")
@@ -535,9 +542,10 @@ in
   xdg.configFile."walker/themes/omarchy-default/layout.xml".source = ./walker/layout.xml;
   xdg.configFile."walker/themes/omarchy-default/style.css".text = ''
     @import url("file://${current}/walker.css");
+    @import url("file://${theme.stateDir}/font.css");
 
     * { all: unset; }
-    * { font-family: "${font}"; font-size: 18px; color: @text; }
+    * { font-size: 18px; color: @text; }
     scrollbar { opacity: 0; }
     .normal-icons { -gtk-icon-size: 16px; }
     .large-icons { -gtk-icon-size: 32px; }
@@ -587,7 +595,7 @@ in
   programs.hyprlock = {
     enable = true;
     settings = {
-      source = [ "${current}/hyprlock.conf" ];   # $theme_* colours
+      source = [ "${current}/hyprlock.conf" "${theme.stateDir}/font.conf" ];   # $theme_* colours, $font
       general.hide_cursor = true;
       background = [{
         monitor = "";
@@ -607,7 +615,7 @@ in
         font_color = "$theme_font";
         check_color = "$theme_check";
         fail_color = "$theme_fail";
-        font_family = font;
+        font_family = "$font";
         placeholder_text = "Enter password";
         fade_on_empty = false;
       }];
@@ -617,14 +625,9 @@ in
   programs.alacritty = {
     enable = true;
     settings = {
-      general.import = [ "${current}/alacritty.toml" ];   # colours, reloaded live
+      general.import = [ "${current}/alacritty.toml" "${theme.stateDir}/font.toml" ];   # colours + font, reloaded live
       env.TERM = "xterm-256color";
-      font = {
-        normal = { family = font; style = "Regular"; };
-        bold = { family = font; style = "Bold"; };
-        italic = { family = font; style = "Italic"; };
-        size = 9;
-      };
+      font.size = 9;   # family comes from font.toml (gear menu > Font)
       window = {
         padding = { x = 14; y = 14; };
         decorations = "None";
@@ -697,9 +700,9 @@ in
     };
     style = ''
       @import url("file://${current}/waybar.css");
+      @import url("file://${theme.stateDir}/font.css");
 
       * {
-        font-family: "${font}";
         font-size: 12px;
         min-height: 0;
         border: none;

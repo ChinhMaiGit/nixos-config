@@ -68,7 +68,8 @@
   # wrapper gpu-screen-recorder needs for direct (KMS) screen capture.
   programs.gpu-screen-recorder.enable = true;
   security.pam.services.hyprlock = { };                     # lock screen password check
-  fonts.packages = [ pkgs.nerd-fonts.jetbrains-mono ];      # Omarchy's font, with icons
+  # Omarchy's font plus a few more Nerd Fonts (with icons) for gear menu > Font
+  fonts.packages = with pkgs.nerd-fonts; [ jetbrains-mono caskaydia-mono fira-code hack ];
   # Default Plasma apps Chinh removed on Kubuntu too (PDFs open in GNOME Papers).
   environment.plasma6.excludePackages = with pkgs.kdePackages; [ okular ];
 

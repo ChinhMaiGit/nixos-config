@@ -16,6 +16,7 @@ let
 
   stateDir = "${config.xdg.stateHome}/theme";
   defaultTheme = "tokyo-night";
+  defaultFont = "JetBrainsMono Nerd Font";
 
   # Omarchy's themes plus Chinh's own (./themes/<name>/colors.toml + backgrounds/)
   themeSources = pkgs.runCommand "theme-sources" { } ''
@@ -42,6 +43,14 @@ let
       bg=$(ls "$state/current/backgrounds" | head -n1)
     fi
     ln -sfn "$(readlink -f "$state/current/backgrounds/$bg")" "$state/background"
+    # Font (gear menu > Font): files the apps read next to the theme's colours
+    font=$(cat "$state/font" 2>/dev/null || echo "${defaultFont}")
+    printf '* { font-family: "%s"; }\n' "$font" > "$state/font.css"
+    printf '[font]\nnormal = { family = "%s", style = "Regular" }\nbold = { family = "%s", style = "Bold" }\nitalic = { family = "%s", style = "Italic" }\n' \
+      "$font" "$font" "$font" > "$state/font.toml"
+    printf '$font = %s\n' "$font" > "$state/font.conf"
+    sed "s/^font=.*/font=$font 11/" "$state/current/mako.ini" > "$state/mako.ini"
+
     if [ "$(cat "$state/current/mode")" = light ]; then scheme=prefer-light; else scheme=prefer-dark; fi
     ${pkgs.dconf}/bin/dconf write /org/gnome/desktop/interface/color-scheme "'$scheme'" 2>/dev/null || true
   '';
@@ -63,6 +72,16 @@ let
     ${restartWallpaper}
     ${pkgs.systemd}/bin/systemctl --user restart walker.service   # reads its colours at start
     ${pkgs.libnotify}/bin/notify-send -t 2000 "Theme: $(cat ${themes}/themes/"$(cat ${stateDir}/name)"/title)"
+  '';
+
+  # Set the font (from the gear menu) and reload what shows it, like Omarchy's omarchy-font-set.
+  fontSet = pkgs.writeShellScript "font-set" ''
+    printf '%s\n' "$1" > ${stateDir}/font
+    ${link}
+    ${pkgs.procps}/bin/pkill -SIGUSR2 waybar || true
+    ${pkgs.mako}/bin/makoctl reload || true
+    ${pkgs.systemd}/bin/systemctl --user restart walker.service
+    ${pkgs.libnotify}/bin/notify-send -t 2000 "Font: $1"
   '';
 
   # Set a wallpaper of the current theme by file name (from the background menu)
@@ -105,5 +124,5 @@ let
 
 in
 {
-  inherit themes stateDir link picker;
+  inherit themes stateDir link picker fontSet;
 }
