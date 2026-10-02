@@ -60,6 +60,10 @@
   # ---------- Desktop: KDE Plasma 6 on Wayland ----------
   services.displayManager.sddm.enable = true;
   services.displayManager.sddm.wayland.enable = true;
+  # Login screen: Omarchy's theme (sddm-theme.nix) and the Hyprland session by default;
+  # F2 on the login screen switches to Plasma while it's still installed.
+  services.displayManager.sddm.theme = "omarchy";
+  services.displayManager.defaultSession = "hyprland-uwsm";
   services.desktopManager.plasma6.enable = true;
   # Omarchy-style Hyprland as a second session (chosen at the login screen); Plasma stays as
   # the fallback until it works properly. The desktop itself is configured in hyprland.nix.
@@ -159,6 +163,7 @@
     mesa-demos vulkan-tools evtest
     wimlib cdrkit efibootmgr
     btrfs-progs xfsprogs
+    (import ./sddm-theme.nix { inherit pkgs; })   # login theme "omarchy"
   ];
 
   system.stateVersion = "26.05";   # do not change after install
