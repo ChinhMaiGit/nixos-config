@@ -41,7 +41,7 @@ let
 
   # SUPER + ESCAPE, like Omarchy's system menu
   powerMenu = pkgs.writeShellScript "power-menu" ''
-    choice=$(printf '%s\n' Lock Suspend "Log out" Restart "Shut down" | walker --dmenu)
+    choice=$(printf '%s\n' Lock Suspend "Log out" Restart "Shut down" | walker --dmenu -p System)
     case "$choice" in
       Lock) loginctl lock-session ;;
       Suspend) systemctl suspend ;;
@@ -75,7 +75,7 @@ let
       .[] | select(.has_description) | if .mouse then "" else "\(.dispatcher)\t\(.arg)" end
     ' <<<"$binds")
 
-    choice=$(printf '%s\n' "''${lines[@]}" | walker --dmenu) || exit 0
+    choice=$(printf '%s\n' "''${lines[@]}" | walker --dmenu -p Keybindings) || exit 0
     for i in "''${!lines[@]}"; do
       if [[ "''${lines[$i]}" == "$choice" && -n "''${actions[$i]}" ]]; then
         IFS=$'\t' read -r dispatcher arg <<<"''${actions[$i]}"
@@ -83,6 +83,23 @@ let
         break
       fi
     done
+  '';
+
+  # SUPER + CTRL + N, like Omarchy's omarchy-toggle-nightlight: 4000 K on, no tint off.
+  nightlight = pkgs.writeShellScript "nightlight-toggle" ''
+    # Start hyprsunset if it isn't running yet (e.g. right after a rebuild).
+    if ! pgrep -x hyprsunset >/dev/null; then
+      setsid uwsm app -- hyprsunset >/dev/null 2>&1 &
+      sleep 1
+    fi
+    temp=$(hyprctl hyprsunset temperature 2>/dev/null | grep -oE '[0-9]+' | head -n1)
+    if [[ -n $temp ]] && (( temp < 6000 )); then
+      hyprctl hyprsunset identity >/dev/null
+      notify-send -t 2000 "Night light off"
+    else
+      hyprctl hyprsunset temperature 4000 >/dev/null
+      notify-send -t 2000 "Night light on"
+    fi
   '';
 
   # Font Awesome glyphs from the Nerd Font, written as JSON escapes
@@ -98,7 +115,7 @@ let
 in
 {
   home.packages = with pkgs; [
-    walker elephant swaybg swayosd hypridle
+    walker elephant swaybg swayosd hypridle hyprsunset libnotify
     hyprshot hyprpicker wl-clipboard playerctl wiremix
   ];
 
@@ -130,6 +147,7 @@ in
         (app "${pkgs.hyprpolkitagent}/libexec/hyprpolkitagent")   # not on PATH
         (app "hypridle")
         (app "elephant")
+        (app "hyprsunset")
         (app "walker --gapplication-service")
       ];
 
@@ -252,6 +270,9 @@ in
         "SUPER SHIFT, comma, Dismiss all notifications, exec, ${makoctl} dismiss --all"
         "SUPER CTRL, comma, Toggle silencing notifications, exec, ${makoctl} mode -t do-not-disturb"
         "SUPER SHIFT, SPACE, Toggle top bar, exec, pkill -SIGUSR1 waybar"
+        "SUPER CTRL, V, Clipboard manager, exec, walker -m clipboard"
+        "SUPER CTRL, E, Emojis, exec, walker -m symbols"
+        "SUPER CTRL, N, Toggle nightlight, exec, ${nightlight}"
 
         ", PRINT, Screenshot (select an area), exec, hyprshot -m region -o ${config.home.homeDirectory}/Pictures/Screenshots"
         "SUPER, PRINT, Color picker, exec, pkill hyprpicker || hyprpicker -a"
@@ -285,6 +306,14 @@ in
     export HYPRCURSOR_SIZE=24
     export QT_QPA_PLATFORMTHEME=kde
     export ELECTRON_OZONE_PLATFORM_HINT=wayland
+  '';
+
+  # hyprsunset tints the screen by default; Omarchy's profile keeps it neutral until toggled.
+  xdg.configFile."hypr/hyprsunset.conf".text = ''
+    profile {
+      time = 07:00
+      identity = true
+    }
   '';
 
   # Lock before sleep only. No idle lock or screen-off, matching the Plasma power settings.
