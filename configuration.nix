@@ -89,6 +89,10 @@
     nssmdns4 = true;
     openFirewall = true;
   };
+  # Don't freeze user programs before sleep. With the rclone OneDrive mount (FUSE), a program
+  # reading ~/OneDrive (Baloo, 2026-10-02) waits on the already-frozen rclone and can't freeze
+  # itself, so sleep gave up after 100 s and the PC stayed on.
+  systemd.services.systemd-suspend.environment.SYSTEMD_SLEEP_FREEZE_USER_SESSIONS = "false";
   services.fwupd.enable = true;
   services.power-profiles-daemon.enable = true;
   services.locate = { enable = true; package = pkgs.plocate; };
