@@ -7,9 +7,10 @@
   boot.loader.systemd-boot.configurationLimit = 3;          # keep 3 generations in the menu
   boot.loader.systemd-boot.memtest86.enable = true;         # was memtest86+ on Kubuntu
   boot.loader.efi.canTouchEfiVariables = true;
-  # 6.18 LTS (NixOS default; RX 9070 XT supported since 6.14). Test 2026-10-02: on 7.2 the
-  # MT7922 Wi-Fi needs 2-5 tries for every 5 GHz handshake; Kubuntu (kernel 7.0) had no
-  # such problem. Back to pkgs.linuxPackages_latest if 6.18 doesn't help.
+  # 6.18 LTS (NixOS default; RX 9070 XT supported since 6.14). On 7.2 the MT7922 Wi-Fi needed
+  # 2-5 tries for every 5 GHz handshake (the router dropped it, and NetworkManager then asked for
+  # the "wrong" password); on 6.18 it connects first try, after boot and after sleep
+  # (2026-10-02; Kubuntu's 7.0 was fine too). Retry linuxPackages_latest on a later 7.x.
   boot.kernelPackages = pkgs.linuxPackages;
 
   # ---------- Nix ----------
@@ -35,15 +36,11 @@
   # ---------- Machine ----------
   networking.hostName = "ChinhMaiPC";
   networking.networkmanager.enable = true;                  # Wi-Fi: re-enter the Vodafone password once
-  # MediaTek MT7922 Wi-Fi (mt7921e): after waking from sleep the 4-way handshake timed out
-  # and NetworkManager asked for the "wrong" password again (2026-10-02). PCIe ASPM and
-  # Wi-Fi power saving off is the usual fix for this card's resume problems.
+  # MT7922 Wi-Fi (mt7921e): ASPM and Wi-Fi power saving off. Tried for the handshake problem
+  # above before the kernel turned out to be the cause; kept because they're harmless on a
+  # desktop and every sleep test since ran with them.
   boot.extraModprobeConfig = "options mt7921e disable_aspm=1";
   networking.networkmanager.wifi.powersave = false;
-  # Neither fixed it. Reloading the driver around sleep and iwd instead of wpa_supplicant
-  # didn't either (2026-10-02): with both, the router itself drops the PC with
-  # "4-way handshake timeout" 1-4 times on almost every 5 GHz connect, after boot as
-  # well as after sleep, while 2.4 GHz connects first try. Next suspect: the router.
   time.timeZone = "Europe/Berlin";
   i18n.defaultLocale = "en_US.UTF-8";
 
