@@ -67,9 +67,12 @@
   systemd.user.services.rclone-onedrive = {
     Unit = { Description = "RClone mount for OneDrive"; After = [ "network-online.target" ]; };
     Service = {
-      ExecStartPre = "${pkgs.coreutils}/bin/mkdir -p %h/OneDrive";
+      # Clear a dead mount left by an unclean stop first ("-" = fine if nothing is mounted).
+      ExecStartPre = [ "-/run/wrappers/bin/fusermount -uz %h/OneDrive" "${pkgs.coreutils}/bin/mkdir -p %h/OneDrive" ];
       ExecStart = "${pkgs.rclone}/bin/rclone mount onedrive: %h/OneDrive --config=%h/.config/rclone/rclone.conf --vfs-cache-mode writes";
-      ExecStop = "/run/wrappers/bin/fusermount -u %h/OneDrive";
+      # Lazy unmount (-z): a plain unmount fails while a program still reads a file, and the
+      # sleep hook stops this service even then (2026-10-02, Dolphin PDF previews).
+      ExecStop = "/run/wrappers/bin/fusermount -uz %h/OneDrive";
       Restart = "on-failure";
       RestartSec = 10;
     };
