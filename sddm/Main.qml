@@ -135,7 +135,7 @@ Rectangle {
 
           onTextChanged: root.loginFailed = false
 
-          Keys.onPressed: {
+          Keys.onPressed: function(event) {   // explicit parameter; Qt 6 deprecates the injected one
             if (event.key === Qt.Key_F2) {
               // Skip plain "Hyprland": the desktop's services start only in the UWSM session.
               var next = root.sessionIndex
