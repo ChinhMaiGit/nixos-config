@@ -102,6 +102,15 @@ let
     fi
   '';
 
+  # Choosing an emoji in SUPER + CTRL + E: Elephant's default only copies it (wl-copy), which
+  # looks like nothing happened. Copy it and type it into the window that had focus.
+  emojiInsert = pkgs.writeShellScript "emoji-insert" ''
+    value=$(cat)
+    printf '%s' "$value" | ${pkgs.wl-clipboard}/bin/wl-copy
+    sleep 0.2   # let Walker close so the previous window has keyboard focus again
+    ${pkgs.wtype}/bin/wtype -- "$value"
+  '';
+
   # Font Awesome glyphs from the Nerd Font, written as JSON escapes
   icon = code: builtins.fromJSON ''"\u${code}"'';
 
@@ -306,6 +315,11 @@ in
     export HYPRCURSOR_SIZE=24
     export QT_QPA_PLATFORMTHEME=kde
     export ELECTRON_OZONE_PLATFORM_HINT=wayland
+  '';
+
+  # Elephant reads one TOML file per provider; it runs "command" with the symbol on stdin.
+  xdg.configFile."elephant/symbols.toml".text = ''
+    command = "${emojiInsert}"
   '';
 
   # hyprsunset tints the screen by default; Omarchy's profile keeps it neutral until toggled.
