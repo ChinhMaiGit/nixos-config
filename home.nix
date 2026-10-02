@@ -113,12 +113,12 @@
     run ${pkgs.kdePackages.kconfig}/bin/kwriteconfig6 --file baloofilerc --group General --key "exclude folders" "${config.home.homeDirectory}/OneDrive/"
   '';
 
-  # App launcher entry: continue the PCAgent Claude Code session (the most recent session in
-  # ~/PCAgent) in a terminal, from Walker (SUPER + SPACE) or Plasma's menu.
+  # App launcher entry: resume exactly the PCAgent Claude Code session (by its ID, not "the most
+  # recent one") in a terminal, from Walker (SUPER + SPACE) or Plasma's menu.
   xdg.desktopEntries.pcagent = {
     name = "PC Agent";
-    comment = "Continue the PC assistant session (Claude Code in ~/PCAgent)";
-    exec = "alacritty --class pcagent --working-directory ${config.home.homeDirectory}/PCAgent -e ${config.home.homeDirectory}/.local/bin/claude --continue";
+    comment = "Resume the PC assistant session (Claude Code in ~/PCAgent)";
+    exec = "alacritty --class pcagent --working-directory ${config.home.homeDirectory}/PCAgent -e ${config.home.homeDirectory}/.local/bin/claude --resume 08c2aab2-c850-4b4a-96fa-a4d55505b2c2";
     icon = "utilities-terminal";
     terminal = false;
     categories = [ "Utility" "System" ];
