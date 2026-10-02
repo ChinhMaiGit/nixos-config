@@ -64,6 +64,9 @@
   # Omarchy-style Hyprland as a second session (chosen at the login screen); Plasma stays as
   # the fallback until it works properly. The desktop itself is configured in hyprland.nix.
   programs.hyprland = { enable = true; withUWSM = true; };
+  # Screen recording in the Hyprland session (ALT + PRINT): the module adds the capability
+  # wrapper gpu-screen-recorder needs for direct (KMS) screen capture.
+  programs.gpu-screen-recorder.enable = true;
   security.pam.services.hyprlock = { };                     # lock screen password check
   fonts.packages = [ pkgs.nerd-fonts.jetbrains-mono ];      # Omarchy's font, with icons
   # Default Plasma apps Chinh removed on Kubuntu too (PDFs open in GNOME Papers).

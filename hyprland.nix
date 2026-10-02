@@ -119,6 +119,39 @@ let
     notify-send -t 2000 "Workspace $ws layout: $new"
   '';
 
+  # ALT + PRINT, like Omarchy's omarchy-capture-screenrecording: if a recording runs, stop it;
+  # otherwise pick what to record and start gpu-screen-recorder (GPU encoder, 60 fps) into
+  # ~/Videos. The PID file marks a running recording (no process-name matching).
+  screenRecord = pkgs.writeShellScript "screen-record" ''
+    pidfile=$XDG_RUNTIME_DIR/screen-record.pid
+    namefile=$XDG_RUNTIME_DIR/screen-record.file
+    if [ -f "$pidfile" ] && kill -0 "$(cat "$pidfile")" 2>/dev/null; then
+      kill -INT "$(cat "$pidfile")"   # SIGINT lets it finish the file properly
+      for _ in $(seq 50); do kill -0 "$(cat "$pidfile")" 2>/dev/null || break; sleep 0.1; done
+      rm -f "$pidfile"
+      notify-send -t 8000 "Screen recording saved" "$(cat "$namefile")"
+      exit 0
+    fi
+
+    choice=$(printf '%s\n' "Region" "Region with sound" "Monitor" "Monitor with sound" \
+      | ${launcher} --dmenu -p "Screen recording") || exit 0
+    case "$choice" in
+      Region*) target=$(${pkgs.slurp}/bin/slurp -f '%wx%h+%x+%y') || exit 0 ;;
+      Monitor*) target=$(hyprctl monitors -j | ${pkgs.jq}/bin/jq -r '.[] | select(.focused).name') ;;
+      *) exit 0 ;;
+    esac
+    audio=()
+    case "$choice" in *sound) audio=(-a default_output -ac aac) ;; esac
+
+    mkdir -p "$HOME/Videos"
+    file=$HOME/Videos/screenrecording-$(date +%Y-%m-%d_%H-%M-%S).mp4
+    echo "$file" > "$namefile"
+    gpu-screen-recorder -w "$target" -k auto -f 60 -fm cfr -fallback-cpu-encoding yes \
+      -o "$file" "''${audio[@]}" >/dev/null 2>&1 &
+    echo $! > "$pidfile"
+    notify-send -t 3000 "Screen recording started" "Alt + Print to stop"
+  '';
+
   # Font Awesome glyphs from the Nerd Font, written as JSON escapes
   icon = code: builtins.fromJSON ''"\u${code}"'';
 
@@ -295,6 +328,7 @@ in
 
         ", PRINT, Screenshot (select an area), exec, hyprshot -m region -o ${config.home.homeDirectory}/Pictures/Screenshots"
         "SUPER, PRINT, Color picker, exec, pkill hyprpicker || hyprpicker -a"
+        "ALT, PRINT, Screen recording (start / stop), exec, ${screenRecord}"
       ];
 
       # One key, two actions: Alt + Tab also raises the window it switches to. No description,
