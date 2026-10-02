@@ -108,6 +108,9 @@
   programs.gamemode.enable = true;
 
   # ---------- Apps with NixOS modules ----------
+  # RGB lighting: MSI Mystic Light on the board (USB 0db0:0076), the G502 mouse, and anything on
+  # the board's ARGB headers. Also loads the SMBus (i2c) drivers OpenRGB needs on AMD boards.
+  services.hardware.openrgb = { enable = true; motherboard = "amd"; };
   programs.kdeconnect.enable = true;
   programs.ausweisapp = { enable = true; openFirewall = true; };
   programs.partition-manager.enable = true;
