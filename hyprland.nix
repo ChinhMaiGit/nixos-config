@@ -224,20 +224,19 @@ in
       xwayland.force_zero_scaling = true;
       ecosystem.no_update_news = true;
 
-      # Omarchy's keybindings (default/hypr/bindings), with Chinh's apps. The "d" variants
+      # Omarchy's keybindings (default/hypr/bindings), with Chinh's apps; one key per action
+      # (Omarchy's second keys for close and browser removed). The "d" variants
       # (bindd, bindmd, ...) carry a description, which the SUPER + K list shows.
       bindd = [
         "SUPER, K, Show keybindings, exec, ${keybindingsMenu}"
         "SUPER, SPACE, App launcher, exec, walker"
         "SUPER, ESCAPE, System menu (lock / suspend / log out / restart / shut down), exec, ${powerMenu}"
         "SUPER, RETURN, Terminal, exec, ${app "alacritty"}"
-        "SUPER SHIFT, RETURN, Browser, exec, ${app browser}"
         "SUPER SHIFT, B, Browser, exec, ${app browser}"
         "SUPER SHIFT, F, File manager, exec, ${app "dolphin"}"
         "SUPER SHIFT, N, Editor, exec, ${app "code"}"
 
         "SUPER, W, Close window, killactive,"
-        "SUPER, Q, Close window, killactive,"
         "SUPER, J, Toggle window split, layoutmsg, togglesplit"
         "SUPER, P, Pseudo window, pseudo,"
         "SUPER, T, Toggle window floating/tiling, togglefloating,"
@@ -264,9 +263,7 @@ in
         "SUPER SHIFT ALT, right, Move workspace to right monitor, movecurrentworkspacetomonitor, r"
 
         "ALT, TAB, Focus on next window, cyclenext,"
-        "ALT, TAB, Reveal active window on top, bringactivetotop,"
         "ALT SHIFT, TAB, Focus on previous window, cyclenext, prev"
-        "ALT SHIFT, TAB, Reveal active window on top, bringactivetotop,"
         "CTRL ALT, TAB, Focus on next monitor, focusmonitor, +1"
 
         # code:20 / code:21 are the minus and equals keys
@@ -285,6 +282,13 @@ in
 
         ", PRINT, Screenshot (select an area), exec, hyprshot -m region -o ${config.home.homeDirectory}/Pictures/Screenshots"
         "SUPER, PRINT, Color picker, exec, pkill hyprpicker || hyprpicker -a"
+      ];
+
+      # One key, two actions: Alt + Tab also raises the window it switches to. No description,
+      # so the SUPER + K list shows each key once.
+      bind = [
+        "ALT, TAB, bringactivetotop,"
+        "ALT SHIFT, TAB, bringactivetotop,"
       ];
 
       bindmd = [
