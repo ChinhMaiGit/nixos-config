@@ -113,6 +113,17 @@
     run ${pkgs.kdePackages.kconfig}/bin/kwriteconfig6 --file baloofilerc --group General --key "exclude folders" "${config.home.homeDirectory}/OneDrive/"
   '';
 
+  # App launcher entry: continue the PCAgent Claude Code session (the most recent session in
+  # ~/PCAgent) in a terminal, from Walker (SUPER + SPACE) or Plasma's menu.
+  xdg.desktopEntries.pcagent = {
+    name = "PC Agent";
+    comment = "Continue the PC assistant session (Claude Code in ~/PCAgent)";
+    exec = "alacritty --class pcagent --working-directory ${config.home.homeDirectory}/PCAgent -e ${config.home.homeDirectory}/.local/bin/claude --continue";
+    icon = "utilities-terminal";
+    terminal = false;
+    categories = [ "Utility" "System" ];
+  };
+
   # Hide apps NixOS's Plasma module installs unconditionally (Skanpage comes with
   # hardware.sane, KWallet Manager is a required Plasma part); Chinh removed both on Kubuntu.
   xdg.dataFile = lib.genAttrs [
