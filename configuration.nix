@@ -61,6 +61,11 @@
   services.displayManager.sddm.enable = true;
   services.displayManager.sddm.wayland.enable = true;
   services.desktopManager.plasma6.enable = true;
+  # Omarchy-style Hyprland as a second session (chosen at the login screen); Plasma stays as
+  # the fallback until it works properly. The desktop itself is configured in hyprland.nix.
+  programs.hyprland = { enable = true; withUWSM = true; };
+  security.pam.services.hyprlock = { };                     # lock screen password check
+  fonts.packages = [ pkgs.nerd-fonts.jetbrains-mono ];      # Omarchy's font, with icons
   # Default Plasma apps Chinh removed on Kubuntu too (PDFs open in GNOME Papers).
   environment.plasma6.excludePackages = with pkgs.kdePackages; [ okular ];
 
