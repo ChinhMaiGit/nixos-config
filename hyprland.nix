@@ -149,7 +149,6 @@ in
         (app "${pkgs.hyprpolkitagent}/libexec/hyprpolkitagent")   # not on PATH
         (app "hypridle")
         (app "hyprsunset")
-        (app "walker --gapplication-service")
       ];
 
       # PAM starts a wallet daemon per login and Plasma stops it at logout; do the same here,
@@ -331,6 +330,24 @@ in
       Restart = "on-failure";
       # On restart stop only Elephant, never apps it launched from Walker.
       KillMode = "process";
+    };
+    Install.WantedBy = [ "wayland-session@hyprland.desktop.target" ];
+  };
+
+  # Walker's background service keeps a connection to Elephant and aborts when Elephant
+  # restarts (2026-10-02, after a rebuild). PartOf elephant.service makes systemd restart it
+  # together with Elephant; Restart covers any other crash.
+  systemd.user.services.walker = {
+    Unit = {
+      Description = "Walker launcher (background service)";
+      PartOf = [ "wayland-session@hyprland.desktop.target" "elephant.service" ];
+      After = [ "wayland-session@hyprland.desktop.target" "elephant.service" ];
+      Requires = [ "elephant.service" ];
+    };
+    Service = {
+      ExecStart = "${pkgs.walker}/bin/walker --gapplication-service";
+      Restart = "on-failure";
+      RestartSec = 1;
     };
     Install.WantedBy = [ "wayland-session@hyprland.desktop.target" ];
   };
