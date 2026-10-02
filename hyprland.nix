@@ -104,6 +104,21 @@ let
     esac
   '';
 
+  # SUPER + L, like Omarchy's omarchy-hyprland-workspace-layout-toggle: switch the active
+  # workspace between dwindle and Hyprland's scrolling layout. Saved per workspace in a file
+  # that hyprland.conf sources, so it survives reloads (theme switches) and logins.
+  layoutsFile = "${config.xdg.stateHome}/hypr/workspace-layouts.conf";
+  layoutToggle = pkgs.writeShellScript "workspace-layout-toggle" ''
+    ws=$(hyprctl activeworkspace -j | ${pkgs.jq}/bin/jq -r .id)
+    [[ $ws =~ ^[0-9]+$ ]] || exit 0   # not for the scratchpad
+    current=$(hyprctl activeworkspace -j | ${pkgs.jq}/bin/jq -r .tiledLayout)
+    if [ "$current" = dwindle ]; then new=scrolling; else new=dwindle; fi
+    sed -i "/^workspace = $ws,/d" ${layoutsFile}
+    echo "workspace = $ws, layout:$new" >> ${layoutsFile}
+    hyprctl keyword workspace "$ws, layout:$new" >/dev/null
+    notify-send -t 2000 "Workspace $ws layout: $new"
+  '';
+
   # Font Awesome glyphs from the Nerd Font, written as JSON escapes
   icon = code: builtins.fromJSON ''"\u${code}"'';
 
@@ -139,7 +154,7 @@ in
       ];
 
       # Border colours of the current theme
-      source = [ "${current}/hyprland.conf" ];
+      source = [ "${current}/hyprland.conf" layoutsFile ];
 
       exec-once = [
         # Hand the login password to the KDE Wallet daemon so it unlocks; Plasma does this
@@ -233,6 +248,7 @@ in
 
         "SUPER, W, Close window, killactive,"
         "SUPER, J, Toggle window split, layoutmsg, togglesplit"
+        "SUPER, L, Toggle workspace layout (dwindle / scrolling), exec, ${layoutToggle}"
         "SUPER, P, Pseudo window, pseudo,"
         "SUPER, T, Toggle window floating/tiling, togglefloating,"
         "SUPER, F, Full screen, fullscreen, 0"
@@ -626,5 +642,7 @@ in
   # dark/light preference from the theme, as Omarchy does.
   home.activation.themeLink = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     run ${theme.link}
+    run mkdir -p ${builtins.dirOf layoutsFile}
+    run touch ${layoutsFile}   # sourced by hyprland.conf, must exist
   '';
 }
