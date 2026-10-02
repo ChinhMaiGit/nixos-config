@@ -37,6 +37,11 @@
   # Wi-Fi power saving off is the usual fix for this card's resume problems.
   boot.extraModprobeConfig = "options mt7921e disable_aspm=1";
   networking.networkmanager.wifi.powersave = false;
+  # Those two alone didn't fix it: after resume the handshake still timed out twice on 5 GHz
+  # (09:21, after a reboot with both active). Unload the driver before sleep and load it
+  # fresh on wake, so the card's firmware always starts clean.
+  powerManagement.powerDownCommands = "${pkgs.kmod}/bin/modprobe -r mt7921e";
+  powerManagement.resumeCommands = "${pkgs.kmod}/bin/modprobe mt7921e";
   time.timeZone = "Europe/Berlin";
   i18n.defaultLocale = "en_US.UTF-8";
 
