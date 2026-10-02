@@ -83,21 +83,23 @@ let
   themeSet = pkgs.writeShellScript "theme-set" ''
     ${link} "$1"
     ${hyprctl} reload >/dev/null
-    ${pkgs.procps}/bin/pkill -SIGUSR2 waybar || true
     ${pkgs.mako}/bin/makoctl reload || true
     ${restartWallpaper}
     ${pkgs.systemd}/bin/systemctl --user restart walker.service   # reads its colours at start
     ${pkgs.libnotify}/bin/notify-send -t 2000 "Theme: $(cat ${themes}/themes/"$(cat ${stateDir}/name)"/title)"
+    # Last: reloading Waybar ends processes it started (a menu opened from the bar).
+    ${pkgs.procps}/bin/pkill -SIGUSR2 waybar || true
   '';
 
   # Set the font (from the gear menu) and reload what shows it, like Omarchy's omarchy-font-set.
   fontSet = pkgs.writeShellScript "font-set" ''
     printf '%s\n' "$1" > ${stateDir}/font
     ${link}
-    ${pkgs.procps}/bin/pkill -SIGUSR2 waybar || true
     ${pkgs.mako}/bin/makoctl reload || true
     ${pkgs.systemd}/bin/systemctl --user restart walker.service
     ${pkgs.libnotify}/bin/notify-send -t 4000 "Font: $1" "Open apps (Edge, VS Code) show it in code text after a restart"
+    # Last: reloading Waybar ends processes it started (a menu opened from the bar).
+    ${pkgs.procps}/bin/pkill -SIGUSR2 waybar || true
   '';
 
   # Set a wallpaper of the current theme by file name (from the background menu)

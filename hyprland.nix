@@ -689,12 +689,14 @@ in
       "custom/settings" = {
         format = icon "f013";
         tooltip-format = "Settings";
-        on-click = "${settingsMenu}";
+        # Detached: started as Waybar's child, the menu's own "reload Waybar" step (font,
+        # theme) made Waybar end it halfway, so Walker and Mako were never reloaded.
+        on-click = "${pkgs.util-linux}/bin/setsid -f ${settingsMenu}";
       };
       "custom/power" = {
         format = icon "f011";
         tooltip = false;
-        on-click = "${powerMenu}";
+        on-click = "${pkgs.util-linux}/bin/setsid -f ${powerMenu}";
       };
       tray.spacing = 12;
     };
