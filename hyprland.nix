@@ -23,10 +23,10 @@ let
 
   # SUPER + ESCAPE, like Omarchy's system menu
   powerMenu = pkgs.writeShellScript "power-menu" ''
-    choice=$(printf '%s\n' Lock Suspend "Log out" Restart "Shut down" | walker --dmenu -p System)
+    choice=$(printf '%s\n' Lock Sleep "Log out" Restart "Shut down" | walker --dmenu -p System)
     case "$choice" in
       Lock) loginctl lock-session ;;
-      Suspend) systemctl suspend ;;
+      Sleep) systemctl suspend ;;
       "Log out") uwsm stop ;;
       Restart) systemctl reboot ;;
       "Shut down") systemctl poweroff ;;
@@ -219,7 +219,7 @@ in
       bindd = [
         "SUPER, K, Show keybindings, exec, ${keybindingsMenu}"
         "SUPER, SPACE, App launcher, exec, walker"
-        "SUPER, ESCAPE, System menu (lock / suspend / log out / restart / shut down), exec, ${powerMenu}"
+        "SUPER, ESCAPE, System menu (lock / sleep / log out / restart / shut down), exec, ${powerMenu}"
         "SUPER, RETURN, Terminal, exec, ${app "alacritty"}"
         "SUPER SHIFT, B, Browser, exec, ${app browser}"
         "SUPER SHIFT, F, File manager, exec, ${app "dolphin"}"
