@@ -76,6 +76,17 @@
   # ---------- Sound, Bluetooth, printing, firmware ----------
   services.pipewire = { enable = true; alsa.enable = true; alsa.support32Bit = true; pulse.enable = true; };
   security.rtkit.enable = true;                             # realtime priority for PipeWire
+  # Ignore the audio of PlayStation controllers (headphone jack/speaker): plugged in, they
+  # became the default output and took the game sound. The gamepad itself is unaffected.
+  services.pipewire.wireplumber.extraConfig."51-ignore-playstation-controller-audio" = {
+    "monitor.alsa.rules" = [{
+      matches = [
+        { "device.name" = "~alsa_card.usb-Sony_Interactive_Entertainment_Wireless_Controller.*"; }
+        { "device.name" = "~alsa_card.usb-Sony_Interactive_Entertainment_DualSense.*"; }
+      ];
+      actions.update-props."device.disabled" = true;
+    }];
+  };
   hardware.bluetooth.enable = true;
   services.printing = {
     enable = true;
