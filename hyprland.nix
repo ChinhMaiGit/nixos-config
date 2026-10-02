@@ -103,12 +103,20 @@ let
   '';
 
   # Choosing an emoji in SUPER + CTRL + E: Elephant's default only copies it (wl-copy), which
-  # looks like nothing happened. Copy it and type it into the window that had focus.
+  # looks like nothing happened. Copy it and paste it into the window that had focus. Pasting
+  # instead of typing it with wtype: Chromium apps with Wayland IME (Slack) garbled typed emoji.
+  # Terminals paste with Ctrl + Shift + V, everything else with Ctrl + V.
   emojiInsert = pkgs.writeShellScript "emoji-insert" ''
     value=$(cat)
     printf '%s' "$value" | ${pkgs.wl-clipboard}/bin/wl-copy
     sleep 0.2   # let Walker close so the previous window has keyboard focus again
-    ${pkgs.wtype}/bin/wtype -- "$value"
+    class=$(hyprctl activewindow -j | ${pkgs.jq}/bin/jq -r '.class // ""')
+    case "$class" in
+      Alacritty|org.kde.konsole|kitty|foot|com.mitchellh.ghostty)
+        ${pkgs.wtype}/bin/wtype -M ctrl -M shift v -m shift -m ctrl ;;
+      *)
+        ${pkgs.wtype}/bin/wtype -M ctrl v -m ctrl ;;
+    esac
   '';
 
   # Font Awesome glyphs from the Nerd Font, written as JSON escapes
