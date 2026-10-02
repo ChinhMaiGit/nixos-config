@@ -75,6 +75,7 @@
 
   # ---------- Sound, Bluetooth, printing, firmware ----------
   services.pipewire = { enable = true; alsa.enable = true; alsa.support32Bit = true; pulse.enable = true; };
+  security.rtkit.enable = true;                             # realtime priority for PipeWire
   hardware.bluetooth.enable = true;
   services.printing = {
     enable = true;

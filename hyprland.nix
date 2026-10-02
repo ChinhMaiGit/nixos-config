@@ -64,7 +64,7 @@ let
 in
 {
   home.packages = with pkgs; [
-    walker elephant swaybg swayosd hyprpolkitagent
+    walker elephant swaybg swayosd hypridle
     hyprshot hyprpicker wl-clipboard playerctl wiremix
   ];
 
@@ -90,7 +90,7 @@ in
         (app "waybar")
         (app "${mako}")
         (app "swayosd-server")
-        (app "hyprpolkitagent")
+        (app "${pkgs.hyprpolkitagent}/libexec/hyprpolkitagent")   # not on PATH
         (app "hypridle")
         (app "elephant")
         (app "walker --gapplication-service")
