@@ -64,6 +64,11 @@
   # F2 on the login screen switches to Plasma while it's still installed.
   services.displayManager.sddm.theme = "omarchy";
   services.displayManager.defaultSession = "hyprland-uwsm";
+  # Qt caches compiled QML by path and file date; Nix store files all date from 1970 and the
+  # theme path never changes, so the login screen kept showing the theme's first version.
+  # Keep NixOS's own value (layer-shell) and switch the cache off.
+  services.displayManager.sddm.settings.General.GreeterEnvironment =
+    "QT_WAYLAND_SHELL_INTEGRATION=layer-shell,QML_DISABLE_DISK_CACHE=1";
   services.desktopManager.plasma6.enable = true;
   # Omarchy-style Hyprland as a second session (chosen at the login screen); Plasma stays as
   # the fallback until it works properly. The desktop itself is configured in hyprland.nix.
