@@ -7,7 +7,10 @@
   boot.loader.systemd-boot.configurationLimit = 3;          # keep 3 generations in the menu
   boot.loader.systemd-boot.memtest86.enable = true;         # was memtest86+ on Kubuntu
   boot.loader.efi.canTouchEfiVariables = true;
-  boot.kernelPackages = pkgs.linuxPackages_latest;          # newest kernel for RDNA 4
+  # 6.18 LTS (NixOS default; RX 9070 XT supported since 6.14). Test 2026-10-02: on 7.2 the
+  # MT7922 Wi-Fi needs 2-5 tries for every 5 GHz handshake; Kubuntu (kernel 7.0) had no
+  # such problem. Back to pkgs.linuxPackages_latest if 6.18 doesn't help.
+  boot.kernelPackages = pkgs.linuxPackages;
 
   # ---------- Nix ----------
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
