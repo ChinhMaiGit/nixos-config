@@ -50,6 +50,20 @@ let
       "$font" "$font" "$font" > "$state/font.toml"
     printf '$font = %s\n' "$font" > "$state/font.conf"
     sed "s/^font=.*/font=$font 11/" "$state/current/mako.ini" > "$state/mako.ini"
+    # System-wide "monospace" default, like omarchy-font-set: code text in Edge, VS Code and
+    # other apps. Its own file, so ~/.config/fontconfig/fonts.conf (KDE's rendering settings)
+    # stays untouched.
+    mkdir -p ${config.xdg.configHome}/fontconfig/conf.d
+    cat > ${config.xdg.configHome}/fontconfig/conf.d/60-chosen-monospace.conf <<EOF
+    <?xml version="1.0"?>
+    <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+    <fontconfig>
+      <match target="pattern">
+        <test name="family" qual="any"><string>monospace</string></test>
+        <edit name="family" mode="prepend_first" binding="strong"><string>$font</string></edit>
+      </match>
+    </fontconfig>
+    EOF
 
     if [ "$(cat "$state/current/mode")" = light ]; then scheme=prefer-light; else scheme=prefer-dark; fi
     ${pkgs.dconf}/bin/dconf write /org/gnome/desktop/interface/color-scheme "'$scheme'" 2>/dev/null || true
@@ -81,7 +95,7 @@ let
     ${pkgs.procps}/bin/pkill -SIGUSR2 waybar || true
     ${pkgs.mako}/bin/makoctl reload || true
     ${pkgs.systemd}/bin/systemctl --user restart walker.service
-    ${pkgs.libnotify}/bin/notify-send -t 2000 "Font: $1"
+    ${pkgs.libnotify}/bin/notify-send -t 4000 "Font: $1" "Open apps (Edge, VS Code) show it in code text after a restart"
   '';
 
   # Set a wallpaper of the current theme by file name (from the background menu)
