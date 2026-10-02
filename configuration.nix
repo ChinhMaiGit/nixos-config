@@ -37,13 +37,10 @@
   # Wi-Fi power saving off is the usual fix for this card's resume problems.
   boot.extraModprobeConfig = "options mt7921e disable_aspm=1";
   networking.networkmanager.wifi.powersave = false;
-  # Neither fixed it, nor did reloading the driver around sleep: the logs show the 5 GHz
-  # handshake times out 1-4 times on almost every connect (after boot too, not just sleep),
-  # while 2.4 GHz went through first try. Try iwd instead of wpa_supplicant for the WPA login.
-  networking.networkmanager.wifi.backend = "iwd";
-  # Chinh wants 5 GHz only (the 2.4 GHz channel is crowded). iwd ignores NetworkManager's
-  # BSSID pin, so turn the 2.4 GHz band off in iwd itself (0.0 = never scan or connect there).
-  networking.wireless.iwd.settings.Rank.BandModifier2_4GHz = 0.0;
+  # Neither fixed it. Reloading the driver around sleep and iwd instead of wpa_supplicant
+  # didn't either (2026-10-02): with both, the router itself drops the PC with
+  # "4-way handshake timeout" 1-4 times on almost every 5 GHz connect, after boot as
+  # well as after sleep, while 2.4 GHz connects first try. Next suspect: the router.
   time.timeZone = "Europe/Berlin";
   i18n.defaultLocale = "en_US.UTF-8";
 
