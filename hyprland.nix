@@ -223,6 +223,47 @@ let
   # notification history): Mako's history in the launcher, newest first. Choosing one with
   # buttons offers them; Mako can only invoke actions on visible notifications, so it restores
   # history entries until the chosen one is visible, invokes, and dismisses the rest again.
+  # Calendar popup for the clock (gsimplecal). It gets its own config folder: its settings, and
+  # a GTK stylesheet with the top bar's theme colours and font (read at each opening, so a theme
+  # or font switch applies next time) instead of the system GTK theme. Running it again closes it.
+  calendarConfig = pkgs.runCommand "calendar-config" { } ''
+    mkdir -p $out/gsimplecal $out/gtk-3.0
+    cat > $out/gsimplecal/config <<'EOF'
+    show_calendar = 1
+    show_timezones = 0
+    mark_today = 1
+    show_week_numbers = 1
+    close_on_unfocus = 1
+    mainwindow_decorated = 0
+    mainwindow_keep_above = 1
+    mainwindow_skip_taskbar = 1
+    mainwindow_resizable = 0
+    mainwindow_position = none
+    EOF
+    cat > $out/gtk-3.0/gtk.css <<'EOF'
+    @import url("file://${current}/waybar.css");
+    @import url("file://${theme.stateDir}/font.css");
+
+    * { font-size: 12px; }
+    window, calendar {
+      background-color: @background;
+      color: @foreground;
+      border: none;
+      box-shadow: none;
+    }
+    calendar { padding: 6px 8px; }
+    calendar.header { font-weight: bold; color: @bright_foreground; }
+    calendar.highlight { color: @accent; }
+    calendar:indeterminate { color: @muted; }
+    calendar:selected { background-color: @accent; color: @background; border-radius: 0; }
+    calendar.button { color: @dark_foreground; background: transparent; border: none; }
+    calendar.button:hover { color: @accent; }
+    EOF
+  '';
+  calendar = pkgs.writeShellScript "calendar" ''
+    XDG_CONFIG_HOME=${calendarConfig} exec ${pkgs.gsimplecal}/bin/gsimplecal
+  '';
+
   notificationCenter = pkgs.writeShellScript "notification-center" ''
     jq=${pkgs.jq}/bin/jq
     hist=$(${makoctl} history -j)
@@ -705,20 +746,6 @@ in
     };
   };
 
-  # Calendar popup settings: closes when it loses focus, week numbers like the clock's "W".
-  xdg.configFile."gsimplecal/config".text = ''
-    show_calendar = 1
-    show_timezones = 0
-    mark_today = 1
-    show_week_numbers = 1
-    close_on_unfocus = 1
-    mainwindow_decorated = 0
-    mainwindow_keep_above = 1
-    mainwindow_skip_taskbar = 1
-    mainwindow_resizable = 0
-    mainwindow_position = none
-  '';
-
   programs.waybar = {
     enable = true;
     settings.main = {
@@ -739,8 +766,7 @@ in
         format = "{:%A %H:%M}";
         format-alt = "{:%d %B W%V %Y}";
         format-alt-click = "click-right";   # right click: full date
-        # Left click opens or closes the calendar (running gsimplecal again closes it).
-        on-click = "${pkgs.gsimplecal}/bin/gsimplecal";
+        on-click = "${calendar}";   # left click: calendar (again: close it)
         tooltip = false;
       };
       network = {
