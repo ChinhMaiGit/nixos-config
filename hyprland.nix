@@ -314,6 +314,12 @@ in
       # No -x: NixOS wrappers rename it (".ksecretd-wrapp"), so match part of the name.
       exec-shutdown = [ "${pkgs.procps}/bin/pkill -u ${config.home.username} ksecretd" ];
 
+      # Calendar from the top bar's clock: a small floating popup just below the bar, centred on
+      # the screen in use (positions are per monitor).
+      windowrule = [
+        "float on, move ((monitor_w*0.5)-(window_w*0.5)) 36, match:class ^(gsimplecal)$"
+      ];
+
       input = {
         kb_layout = "us";
         follow_mouse = 1;
@@ -699,6 +705,20 @@ in
     };
   };
 
+  # Calendar popup settings: closes when it loses focus, week numbers like the clock's "W".
+  xdg.configFile."gsimplecal/config".text = ''
+    show_calendar = 1
+    show_timezones = 0
+    mark_today = 1
+    show_week_numbers = 1
+    close_on_unfocus = 1
+    mainwindow_decorated = 0
+    mainwindow_keep_above = 1
+    mainwindow_skip_taskbar = 1
+    mainwindow_resizable = 0
+    mainwindow_position = none
+  '';
+
   programs.waybar = {
     enable = true;
     settings.main = {
@@ -718,6 +738,9 @@ in
       clock = {
         format = "{:%A %H:%M}";
         format-alt = "{:%d %B W%V %Y}";
+        format-alt-click = "click-right";   # right click: full date
+        # Left click opens or closes the calendar (running gsimplecal again closes it).
+        on-click = "${pkgs.gsimplecal}/bin/gsimplecal";
         tooltip = false;
       };
       network = {
