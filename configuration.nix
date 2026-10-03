@@ -169,6 +169,10 @@
     wimlib cdrkit efibootmgr
     btrfs-progs xfsprogs
     (import ./sddm-theme.nix { inherit pkgs; })   # login theme "omarchy"
+    # QML modules some System Settings pages import (Cursors, Colors, Icons, Plasma Style,
+    # Window Decorations, Global Theme: org.kde.newstuff, org.kde.kquickcontrolsaddons, org.kde.ksvg). Not in
+    # the system QML path otherwise, so those pages failed with "Error loading QML file".
+    kdePackages.knewstuff kdePackages.kdeclarative kdePackages.ksvg
   ];
 
   system.stateVersion = "26.05";   # do not change after install
