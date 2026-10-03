@@ -158,7 +158,8 @@ let
   # Wi-Fi menu in the launcher (top bar Wi-Fi icon, gear menu > Wi-Fi), replacing nmtui, whose
   # screen came out garbled in tiled windows (2026-10-03). Networks strongest first, one line per
   # name; a saved network is started through its own profile (keeps the 5 GHz access point pin),
-  # a new one asks for its password. Choosing the connected network offers to disconnect.
+  # a new one asks for its password. A saved network opens a submenu: connect / disconnect,
+  # change password, connect automatically, forget, and KDE's page with all its settings.
   wifiMenu = pkgs.writeShellScript "wifi-menu" ''
     pick() { ${launcher} --dmenu -p "$1"; }
     notify() { notify-send -t 4000 -i network-wireless "$@"; }
@@ -211,16 +212,52 @@ let
     ssid=''${ssids[$i]%|*}
     security=''${ssids[$i]##*|}
 
-    if [ "$ssid" = "$current" ]; then
-      choice=$(printf '%s\n' "${icon "f127"}  Disconnect from $ssid" | pick "$ssid") || exit 0
-      nmcli connection down id "$(nmcli -g GENERAL.CONNECTION device show "$(nmcli -t -f DEVICE,TYPE device | awk -F: '$2=="wifi"{print $1; exit}')")" >/dev/null \
-        && notify "Disconnected" "$ssid"
-      exit 0
+    uuid=''${saved[$ssid]:-}
+
+    # Saved network: what to do with it
+    if [ -n "$uuid" ]; then
+      if [ "$ssid" = "$current" ]; then first="${icon "f127"}  Disconnect"; else first="${icon "f1eb"}  Connect"; fi
+      if [ "$(nmcli -g connection.autoconnect connection show "$uuid")" = yes ]; then auto=on; else auto=off; fi
+      choice=$(printf '%s\n' "$first" "${icon "f084"}  Change password" \
+        "${icon "f021"}  Connect automatically: $auto" "${icon "f1f8"}  Forget network" \
+        "${icon "f013"}  All settings…" | pick "$ssid") || exit 0
+      case "$choice" in
+        *Disconnect)
+          nmcli connection down uuid "$uuid" >/dev/null && notify "Disconnected" "$ssid"
+          exit 0 ;;
+        *Connect) ;;   # below
+        *"Change password")
+          pw=$(${launcher} --password -p "New password for $ssid") || exit 0
+          [ -n "$pw" ] || exit 0
+          nmcli connection modify uuid "$uuid" wifi-sec.psk "$pw" || { notify -u critical "Couldn't change the password"; exit 1; }
+          notify "Password changed" "$ssid"
+          [ "$ssid" = "$current" ] || exit 0   # try it now if it's the network in use
+          ;;
+        *"Connect automatically"*)
+          if [ $auto = on ]; then new=no; else new=yes; fi
+          nmcli connection modify uuid "$uuid" connection.autoconnect $new \
+            && notify "$ssid" "Connect automatically: $([ $new = yes ] && echo on || echo off)"
+          exit 0 ;;
+        *Forget*)
+          # A pinned access point (the 5 GHz fix for the home network) goes with the profile
+          note=""
+          [ -n "$(nmcli -g 802-11-wireless.bssid connection show "$uuid")" ] && note=" (and its 5 GHz access point pin)"
+          confirm=$(printf '%s\n' "Cancel" "Forget $ssid$note" | pick "Forget $ssid?") || exit 0
+          case "$confirm" in
+            Forget*) nmcli connection delete uuid "$uuid" >/dev/null && notify "Forgot $ssid" ;;
+          esac
+          exit 0 ;;
+        *"All settings"*)
+          # KDE's network settings page, opened at this network (IP, DNS, access point, ...)
+          uwsm app -- kcmshell6 kcm_networkmanagement --args "Uuid=$uuid"
+          exit 0 ;;
+        *) exit 0 ;;
+      esac
     fi
 
     notify "Connecting…" "$ssid"
-    if [ -n "''${saved[$ssid]:-}" ]; then
-      out=$(nmcli connection up uuid "''${saved[$ssid]}" 2>&1)
+    if [ -n "$uuid" ]; then
+      out=$(nmcli connection up uuid "$uuid" 2>&1)
     elif [ -z "$security" ] || [ "$security" = "--" ]; then
       out=$(nmcli device wifi connect "$ssid" 2>&1)
     elif [[ "$security" == *802.1X* ]]; then
