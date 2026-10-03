@@ -4,7 +4,7 @@
 { config, pkgs, lib, ... }:
 
 {
-  imports = [ ./hyprland.nix ];
+  imports = [ ./hyprland.nix ./fastfetch.nix ];
 
   home.username = "chinh";
   home.homeDirectory = "/home/chinh";
@@ -32,7 +32,7 @@
     kdePackages.dolphin-plugins kdePackages.ffmpegthumbs kdePackages.kdegraphics-thumbnailers
     simple-scan papers
     # System / terminal tools
-    btop htop fastfetch cmatrix go-mtpfs
+    btop htop cmatrix go-mtpfs
     # Cloud
     rclone
   ];

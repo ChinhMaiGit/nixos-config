@@ -9,9 +9,14 @@
       url = "github:nix-community/home-manager/release-26.05";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # Animated fastfetch (fastfetch.nix)
+    anifetch = {
+      url = "github:Notenlish/anifetch";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { nixpkgs, home-manager, ... }: {
+  outputs = { nixpkgs, home-manager, anifetch, ... }: {
     nixosConfigurations.ChinhMaiPC = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
@@ -22,6 +27,7 @@
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
           home-manager.backupFileExtension = "hm-backup";
+          home-manager.extraSpecialArgs = { inherit anifetch; };
           home-manager.users.chinh = import ./home.nix;
         }
       ];
