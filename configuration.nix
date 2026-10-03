@@ -1,4 +1,4 @@
-# System-level configuration (draft, untested). Mirrors the Kubuntu 26.04 setup of 2026-10-01.
+# System-level configuration. Started as a copy of the Kubuntu 26.04 setup of 2026-10-01.
 { config, pkgs, ... }:
 
 {
