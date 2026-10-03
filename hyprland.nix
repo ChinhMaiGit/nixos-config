@@ -155,10 +155,96 @@ let
   # Font Awesome glyphs from the Nerd Font, written as JSON escapes
   icon = code: builtins.fromJSON ''"\u${code}"'';
 
+  # Wi-Fi menu in the launcher (top bar Wi-Fi icon, gear menu > Wi-Fi), replacing nmtui, whose
+  # screen came out garbled in tiled windows (2026-10-03). Networks strongest first, one line per
+  # name; a saved network is started through its own profile (keeps the 5 GHz access point pin),
+  # a new one asks for its password. Choosing the connected network offers to disconnect.
+  wifiMenu = pkgs.writeShellScript "wifi-menu" ''
+    pick() { ${launcher} --dmenu -p "$1"; }
+    notify() { notify-send -t 4000 -i network-wireless "$@"; }
+
+    if [ "$(nmcli radio wifi)" != enabled ]; then
+      choice=$(printf '%s\n' "${icon "f1eb"}  Turn Wi-Fi on" | pick Wi-Fi) || exit 0
+      nmcli radio wifi on && notify "Wi-Fi on"
+      exit 0
+    fi
+
+    # Saved profiles by network name (the name a profile has can differ from the network's)
+    declare -A saved
+    while IFS=: read -r uuid type; do
+      [ "$type" = 802-11-wireless ] || continue
+      saved["$(nmcli -g 802-11-wireless.ssid connection show "$uuid")"]=$uuid
+    done < <(nmcli -t -f UUID,TYPE connection show)
+
+    # nmcli writes ":" and "\" in network names as "\:" and "\\"
+    unescape() { sed 's/\\:/:/g; s/\\\\/\\/g'; }
+    # The connected network (its line may not be the strongest of its access points)
+    current=$(nmcli -t -e yes -f IN-USE,SSID device wifi list --rescan no | sed -n 's/^\*://p' | head -1 | unescape)
+
+    # "IN-USE:SIGNAL:BARS:SECURITY:SSID", strongest first; the name is last, so colons in it
+    # stay in it
+    ssids=() lines=()
+    declare -A seen
+    while IFS=: read -r inuse signal bars security ssid; do
+      ssid=$(printf '%s' "$ssid" | unescape)
+      [ -n "$ssid" ] && [ -z "''${seen[$ssid]:-}" ] || continue
+      seen[$ssid]=1
+      mark=""; [ "$ssid" = "$current" ] && mark="  ${icon "f00c"} connected"   # at the end: Walker trims leading spaces
+      lock=""; [ -n "$security" ] && [ "$security" != "--" ] && lock="  ${icon "f023"}"
+      ssids+=("$ssid|$security")
+      lines+=("$bars  $ssid$lock$mark")
+    done < <(nmcli -t -e yes -f IN-USE,SIGNAL,BARS,SECURITY,SSID device wifi list | sort -t: -k2,2nr)
+
+    extras=("${icon "f021"}  Scan again" "${icon "f1eb"}  Turn Wi-Fi off" "${icon "f013"}  Advanced (nmtui)")
+    i=$(printf '%s\n' "''${lines[@]}" "''${extras[@]}" | ${launcher} --dmenu -i -p Wi-Fi) || exit 0
+    [ -n "$i" ] || exit 0
+
+    if [ "$i" -ge "''${#lines[@]}" ]; then
+      case "''${extras[$((i - ''${#lines[@]}))]}" in
+        *"Scan again") nmcli device wifi rescan 2>/dev/null; sleep 3; exec "$0" ;;
+        *"Turn Wi-Fi off") nmcli radio wifi off && notify "Wi-Fi off" ;;
+        *Advanced*) uwsm app -- alacritty --class nmtui -e nmtui ;;
+      esac
+      exit 0
+    fi
+
+    ssid=''${ssids[$i]%|*}
+    security=''${ssids[$i]##*|}
+
+    if [ "$ssid" = "$current" ]; then
+      choice=$(printf '%s\n' "${icon "f127"}  Disconnect from $ssid" | pick "$ssid") || exit 0
+      nmcli connection down id "$(nmcli -g GENERAL.CONNECTION device show "$(nmcli -t -f DEVICE,TYPE device | awk -F: '$2=="wifi"{print $1; exit}')")" >/dev/null \
+        && notify "Disconnected" "$ssid"
+      exit 0
+    fi
+
+    notify "Connecting…" "$ssid"
+    if [ -n "''${saved[$ssid]:-}" ]; then
+      out=$(nmcli connection up uuid "''${saved[$ssid]}" 2>&1)
+    elif [ -z "$security" ] || [ "$security" = "--" ]; then
+      out=$(nmcli device wifi connect "$ssid" 2>&1)
+    elif [[ "$security" == *802.1X* ]]; then
+      notify "$ssid needs a company login" "Use Advanced (nmtui) to set it up"; exit 0
+    else
+      pw=$(${launcher} --password -p "Password for $ssid") || exit 0
+      [ -n "$pw" ] || exit 0
+      if ! out=$(nmcli device wifi connect "$ssid" password "$pw" 2>&1); then
+        # Don't keep a profile with a wrong password, so the next try asks again
+        nmcli connection delete id "$ssid" >/dev/null 2>&1
+      fi
+    fi
+    if nmcli -t -f GENERAL.STATE device show "$(nmcli -t -f DEVICE,TYPE device | awk -F: '$2=="wifi"{print $1; exit}')" | grep -q '(connected)' \
+      && [ "$(nmcli -t -f IN-USE,SSID device wifi list --rescan no | sed -n 's/^\*://p' | head -1)" = "$ssid" ]; then
+      notify "Connected" "$ssid"
+    else
+      notify -u critical "Couldn't connect to $ssid" "$(printf '%s' "$out" | tail -1)"
+    fi
+  '';
+
   # Settings menu (gear in the top bar, SUPER + ALT + SPACE), like the setup part of Omarchy's
-  # menu: terminal tools for Wi-Fi / Bluetooth / audio as in Omarchy (nmtui instead of impala,
-  # which needs iwd), drives via udisks (Hyprland doesn't auto-mount like Plasma), power
-  # profile, look, and KDE System Settings for the rest while Plasma is installed.
+  # menu: Wi-Fi in the launcher (wifiMenu), terminal tools for Bluetooth / audio as in Omarchy,
+  # drives via udisks (Hyprland doesn't auto-mount like Plasma), power profile, look, and KDE
+  # System Settings for the rest while Plasma is installed.
   settingsMenu = pkgs.writeShellScript "settings-menu" ''
     pick() { ${launcher} --dmenu -p "$1"; }
     term() { uwsm app -- alacritty --class "$1" -e "''${@:2}"; }
@@ -178,7 +264,7 @@ let
       | pick Settings) || exit 0
 
     case "$choice" in
-      *Wi-Fi) term nmtui nmtui connect ;;
+      *Wi-Fi) exec ${wifiMenu} ;;
       *Bluetooth) term bluetui ${pkgs.bluetui}/bin/bluetui ;;
       *Audio) term wiremix wiremix ;;
       *"Mount drive")
@@ -775,7 +861,7 @@ in
         format-disconnected = icon "f127";
         tooltip-format-wifi = "{essid} ({frequency} GHz, {signalStrength}%)\n⇣{bandwidthDownBytes}  ⇡{bandwidthUpBytes}";
         interval = 3;
-        on-click = app "alacritty -e nmtui";
+        on-click = "${pkgs.util-linux}/bin/setsid -f ${wifiMenu}";   # detached, like the gear menu
       };
       pulseaudio = {
         format = "{icon}";
