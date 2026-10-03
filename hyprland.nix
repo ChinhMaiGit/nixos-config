@@ -444,6 +444,8 @@ in
       X-Restart-Triggers = [
         "${config.xdg.configFile."elephant/symbols.toml".source}"
         "${config.xdg.configFile."elephant/desktopapplications.toml".source}"
+        "${config.xdg.configFile."elephant/elephant.toml".source}"
+        "${config.xdg.configFile."elephant/files.toml".source}"
         # Elephant reads the app list at start and misses a rebuild swapping the app folder,
         # so a new or removed app (in home.packages or a desktop entry) restarts it too.
         "${config.home.path}"
@@ -564,6 +566,20 @@ in
     .item-image { margin-right: 14px; -gtk-icon-transform: scale(0.9); }
     .current { font-style: italic; }
     .keybind-hints { background: @background; padding: 10px; margin-top: 10px; }
+  '';
+
+  # Elephant's Arch/Fedora package providers are useless on NixOS (archlinuxpkgs downloaded a
+  # 75 MB package list), and niri sessions don't apply here.
+  xdg.configFile."elephant/elephant.toml".text = ''
+    ignored_providers = [ "archlinuxpkgs", "dnfpackages", "nirisessions" ]
+  '';
+
+  # File search (Walker's "." prefix) indexes $HOME at every Elephant start. It walked all of
+  # the rclone OneDrive mount (336,664 of 338,605 entries, 2026-10-03): slow, loads OneDrive, and
+  # FUSE reads can block sleep. Exclude OneDrive from fd's walk.
+  xdg.configFile."elephant/files.toml".text = ''
+    fd_flags = [ "--ignore-vcs", "--type", "file", "--type", "directory", "--exclude", "OneDrive" ]
+    ignored_dirs = [ "^${config.home.homeDirectory}/OneDrive" ]
   '';
 
   # App search like Omarchy: by title only, no action entries, no history ordering.
