@@ -4,7 +4,7 @@
 { config, pkgs, lib, ... }:
 
 {
-  imports = [ ./hyprland.nix ./fastfetch.nix ];
+  imports = [ ./hyprland.nix ./fastfetch.nix ./dev.nix ];
 
   home.username = "chinh";
   home.homeDirectory = "/home/chinh";
