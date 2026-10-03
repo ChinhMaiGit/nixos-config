@@ -278,6 +278,27 @@ let
     fi
   '';
 
+  # Quick notes (SUPER + N, "Notes" in the launcher): notes.qml, a Quickshell window that edits
+  # ~/Notes/notes.md and saves by itself. Pressed again, it closes the window (which saves).
+  # The notes came from Plasma's Sticky Notes widget (2026-10-03); they never go into git.
+  notesToggle = pkgs.writeShellScript "notes-toggle" ''
+    if ${pkgs.hyprland}/bin/hyprctl clients | grep -q '^\s*title: Quick Notes$'; then
+      exec ${pkgs.hyprland}/bin/hyprctl dispatch closewindow 'title:^(Quick Notes)$' >/dev/null
+    fi
+    file=${config.home.homeDirectory}/Notes/notes.md
+    mkdir -p "$(dirname "$file")"
+    [ -e "$file" ] || install -m 600 /dev/null "$file"
+    colors=${theme.stateDir}/current/colors.json
+    jq=${pkgs.jq}/bin/jq
+    NOTES_FILE=$file \
+    NOTES_ACCENT=$($jq -r .accent "$colors") \
+    NOTES_BACKGROUND=$($jq -r .background "$colors") \
+    NOTES_FOREGROUND=$($jq -r .bright_foreground "$colors") \
+    NOTES_MUTED=$($jq -r .muted "$colors") \
+    NOTES_FONT=$(cat ${theme.stateDir}/font 2>/dev/null || echo "JetBrainsMono Nerd Font") \
+      exec ${pkgs.quickshell}/bin/qs --no-duplicate -p ${./notes.qml}
+  '';
+
   # Settings menu (gear in the top bar, SUPER + ALT + SPACE), like the setup part of Omarchy's
   # menu: Wi-Fi in the launcher (wifiMenu), terminal tools for Bluetooth / audio as in Omarchy,
   # drives via udisks (Hyprland doesn't auto-mount like Plasma), power profile, look, and KDE
@@ -482,6 +503,7 @@ in
       # the screen in use (positions are per monitor).
       windowrule = [
         "float on, move ((monitor_w*0.5)-(window_w*0.5)) 36, match:class ^(gsimplecal)$"
+        "float on, size 900 640, center on, match:title ^(Quick Notes)$"
       ];
 
       input = {
@@ -602,6 +624,7 @@ in
         "SUPER SHIFT, SPACE, Toggle top bar, exec, pkill -SIGUSR1 waybar"
         "SUPER CTRL, V, Clipboard manager, exec, ${launcher} -m clipboard"
         "SUPER CTRL, E, Emojis, exec, ${launcher} -m symbols"
+        "SUPER, N, Quick notes, exec, ${notesToggle}"
         "SUPER CTRL, N, Toggle nightlight, exec, ${nightlight}"
         "SUPER CTRL SHIFT, SPACE, Theme menu, exec, ${theme.picker} themes"
         "SUPER CTRL, SPACE, Background switcher, exec, ${theme.picker} backgrounds"
@@ -867,6 +890,16 @@ in
         decorations = "None";
       };
     };
+  };
+
+  # "Notes" in the launcher (SUPER + SPACE), same as SUPER + N
+  xdg.desktopEntries.quick-notes = {
+    name = "Notes";
+    comment = "Quick notes, saved automatically (~/Notes/notes.md)";
+    exec = "${notesToggle}";
+    icon = "accessories-text-editor";
+    terminal = false;
+    categories = [ "Utility" ];
   };
 
   programs.waybar = {
