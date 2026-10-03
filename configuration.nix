@@ -107,13 +107,13 @@
   hardware.bluetooth.enable = true;
   services.printing = {
     enable = true;
-    drivers = with pkgs; [ hplip brlaser gutenprint foo2zjs splix ];
+    drivers = with pkgs; [ brlaser gutenprint foo2zjs splix ];   # no HP device, so no hplip
   };
   # Scanning (GNOME Document Scanner; Skanpage is hidden in home.nix): SANE with driverless network scanning
-  # (AirScan/eSCL) and HP devices; Avahi finds network scanners and printers like on Kubuntu.
+  # (AirScan/eSCL); Avahi finds network scanners and printers like on Kubuntu.
   hardware.sane = {
     enable = true;
-    extraBackends = with pkgs; [ sane-airscan hplip ];
+    extraBackends = with pkgs; [ sane-airscan ];   # Canon LiDE 400 uses SANE's built-in pixma driver
   };
   services.avahi = {
     enable = true;
