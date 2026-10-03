@@ -219,6 +219,50 @@ let
     esac
   '';
 
+  # Notification centre (bell in the top bar, SUPER + SHIFT + ALT + COMMA, like Omarchy's
+  # notification history): Mako's history in the launcher, newest first. Choosing one with
+  # buttons offers them; Mako can only invoke actions on visible notifications, so it restores
+  # history entries until the chosen one is visible, invokes, and dismisses the rest again.
+  notificationCenter = pkgs.writeShellScript "notification-center" ''
+    jq=${pkgs.jq}/bin/jq
+    hist=$(${makoctl} history -j)
+    count=$(echo "$hist" | $jq length)
+    if [ "$count" = 0 ]; then notify-send -t 2000 "No notifications"; exit 0; fi
+    choice=$(echo "$hist" | $jq -r 'to_entries[] | "\(.key + 1). \(.value.app_name) — \(.value.summary)\(if (.value.body // "") != "" then " · " + (.value.body | gsub("<[^>]*>"; "") | gsub("\\s+"; " ") | .[0:80]) else "" end)"' \
+      | ${launcher} --dmenu -p Notifications) || exit 0
+    pos=''${choice%%.*}
+    [[ $pos =~ ^[0-9]+$ ]] || exit 0
+    n=$(echo "$hist" | $jq ".[$((pos - 1))]")
+    id=$(echo "$n" | $jq -r .id)
+    [ "$(echo "$n" | $jq '.actions | length')" -gt 0 ] || exit 0
+    label=$(echo "$n" | $jq -r '.actions | to_entries[] | .value' | ${launcher} --dmenu -p Action) || exit 0
+    key=$(echo "$n" | $jq -r --arg l "$label" '.actions | to_entries[] | select(.value == $l) | .key' | head -n1)
+    restored=()
+    for _ in $(seq "$pos"); do
+      ${makoctl} list -j | $jq -e --argjson id "$id" 'any(.[]; .id == $id)' >/dev/null && break
+      ${makoctl} restore
+      restored+=("$(${makoctl} list -j | $jq -r '.[0].id')")
+    done
+    ${makoctl} invoke -n "$id" "$key"
+    for r in "''${restored[@]}"; do [ "$r" != "$id" ] && ${makoctl} dismiss -n "$r" 2>/dev/null; done
+    true
+  '';
+
+  # Bell for Waybar: bell-slash while Do Not Disturb is on; history count in the tooltip.
+  notificationStatus = pkgs.writeShellScript "notification-status" ''
+    jq=${pkgs.jq}/bin/jq
+    count=$(${makoctl} history -j 2>/dev/null | $jq length 2>/dev/null || echo 0)
+    if ${makoctl} mode | grep -qx do-not-disturb; then
+      printf '{"text":"${icon "f1f6"}","tooltip":"Do Not Disturb is on · %s in history","class":"dnd"}\n' "$count"
+    else
+      printf '{"text":"${icon "f0f3"}","tooltip":"Notifications · %s in history","class":"normal"}\n' "$count"
+    fi
+  '';
+  toggleDnd = pkgs.writeShellScript "toggle-dnd" ''
+    ${makoctl} mode -t do-not-disturb >/dev/null
+    ${pkgs.procps}/bin/pkill -RTMIN+8 waybar || true   # refresh the bell now
+  '';
+
   workspaceKeys = lib.concatMap (n:
     let key = "code:${toString (n + 9)}"; ws = toString n;
     in [
@@ -383,7 +427,8 @@ in
 
         "SUPER, comma, Dismiss last notification, exec, ${makoctl} dismiss"
         "SUPER SHIFT, comma, Dismiss all notifications, exec, ${makoctl} dismiss --all"
-        "SUPER CTRL, comma, Toggle silencing notifications, exec, ${makoctl} mode -t do-not-disturb"
+        "SUPER CTRL, comma, Toggle silencing notifications, exec, ${toggleDnd}"
+        "SUPER SHIFT ALT, comma, Open notification history, exec, ${notificationCenter}"
         "SUPER SHIFT, SPACE, Toggle top bar, exec, pkill -SIGUSR1 waybar"
         "SUPER CTRL, V, Clipboard manager, exec, ${launcher} -m clipboard"
         "SUPER CTRL, E, Emojis, exec, ${launcher} -m symbols"
@@ -663,7 +708,7 @@ in
       spacing = 0;
       modules-left = [ "hyprland/workspaces" ];
       modules-center = [ "clock" ];
-      modules-right = [ "tray" "bluetooth" "network" "pulseaudio" "cpu" "custom/settings" "custom/power" ];
+      modules-right = [ "tray" "bluetooth" "network" "pulseaudio" "cpu" "custom/notifications" "custom/settings" "custom/power" ];
 
       "hyprland/workspaces" = {
         on-click = "activate";
@@ -705,6 +750,15 @@ in
         tooltip = true;
         on-click = app "alacritty -e btop";
       };
+      "custom/notifications" = {
+        exec = "${notificationStatus}";
+        return-type = "json";
+        interval = 5;
+        signal = 8;
+        # Detached like the gear menu, so a Waybar reload can't end it.
+        on-click = "${pkgs.util-linux}/bin/setsid -f ${notificationCenter}";
+        on-click-right = "${toggleDnd}";
+      };
       "custom/settings" = {
         format = icon "f013";
         tooltip-format = "Settings";
@@ -743,7 +797,7 @@ in
       #workspaces button.empty { opacity: 0.5; }
       #workspaces button:hover { background: @selection; }
       #clock { font-weight: bold; }
-      #tray, #bluetooth, #network, #pulseaudio, #cpu, #custom-settings, #custom-power {
+      #tray, #bluetooth, #network, #pulseaudio, #cpu, #custom-notifications, #custom-settings, #custom-power {
         padding: 0 10px;
       }
       #custom-power { margin-right: 6px; }
