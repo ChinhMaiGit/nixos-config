@@ -1,9 +1,12 @@
 # Development setup: direnv with nix-direnv (a project's Nix dev shell turns on when you `cd`
 # into it), and `pyinit`, which starts a Python project in one command: uv for the Python
 # packages, a flake dev shell for Python itself and any system tools.
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 
 let
+  # Chinh's usual stack, added to every new project unless `pyinit --bare`
+  defaultPackages = [ "polars" "plotly" "marimo" "numpy" "pymc" "scikit-learn" "pandas" ];
+
   # Written into each new project. nixpkgs is the stable branch this system uses; the project's
   # flake.lock pins the exact version. Add system tools (ffmpeg, ruff, ...) to `packages`.
   flakeTemplate = pkgs.writeText "python-flake.nix" ''
@@ -43,13 +46,23 @@ let
 
   pyinit = pkgs.writeShellScriptBin "pyinit" ''
     set -euo pipefail
-    if [ $# -lt 1 ] || [ "$1" = -h ] || [ "$1" = --help ]; then
-      echo "usage: pyinit <project-name> [python-version, default 3.12]"
-      echo "Creates the folder with uv init, a Nix dev shell (flake.nix) and direnv (.envrc)."
+    bare=0
+    args=()
+    for a in "$@"; do
+      case "$a" in
+        --bare) bare=1 ;;
+        -h|--help) args=() ; break ;;
+        *) args+=("$a") ;;
+      esac
+    done
+    if [ ''${#args[@]} -lt 1 ]; then
+      echo "usage: pyinit <project-name> [python-version, default 3.12] [--bare]"
+      echo "Creates the folder with uv init, a Nix dev shell (flake.nix) and direnv (.envrc),"
+      echo "and adds: ${lib.concatStringsSep " " defaultPackages} (not with --bare)."
       exit 0
     fi
-    name=$1
-    version=''${2:-3.12}
+    name=''${args[0]}
+    version=''${args[1]:-3.12}
     attr=python''${version//./}   # 3.12 -> python312
     if ! nix eval --raw "nixpkgs#$attr.version" >/dev/null 2>&1; then
       echo "pyinit: Python $version isn't in nixpkgs ($attr)" >&2
@@ -71,6 +84,12 @@ let
     echo "Pinning nixpkgs (the first time downloads it)..."
     nix flake lock
     git add flake.lock
+    if [ $bare = 0 ]; then
+      echo "Adding ${lib.concatStringsSep ", " defaultPackages}..."
+      # inside the dev shell, so uv uses the project's Python
+      nix develop --command uv add --quiet ${lib.concatStringsSep " " defaultPackages}
+      git add pyproject.toml uv.lock
+    fi
     ${pkgs.direnv}/bin/direnv allow
     echo
     echo "Ready: $PWD"
