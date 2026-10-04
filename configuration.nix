@@ -141,6 +141,13 @@
   };
   programs.gamemode.enable = true;
 
+  # ---------- Android apps (Waydroid) ----------
+  # A real Android (LineageOS) in a container on the Linux kernel; apps open as desktop windows.
+  # For Fonos (Vietnamese audiobooks, Android/iOS only). Works now that the GPU is AMD (Mesa);
+  # on the old NVIDIA card it showed only a black screen. Image + ARM translation are set up
+  # once with `waydroid init` and waydroid_script (outside this config).
+  virtualisation.waydroid.enable = true;
+
   # ---------- Apps with NixOS modules ----------
   # RGB lighting: MSI Mystic Light on the board (USB 0db0:0076), the G502 mouse, and anything on
   # the board's ARGB headers. Also loads the SMBus (i2c) drivers OpenRGB needs on AMD boards.
