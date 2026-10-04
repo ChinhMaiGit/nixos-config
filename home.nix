@@ -26,6 +26,7 @@
     kcc unar
     # Gaming tools
     protonup-qt
+    limo   # mod manager (Nexus Mods, LOOT); deploys mods into the game folders
     # Media and KDE apps
     haruna kdePackages.elisa kdePackages.gwenview kdePackages.kate kdePackages.kcalc
     kdePackages.kcharselect kdePackages.ark kdePackages.ksystemlog
