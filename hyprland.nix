@@ -6,7 +6,7 @@
 # Everything here starts from Hyprland itself (exec-once), not from systemd user services:
 # those would also start inside Plasma, which shares graphical-session.target.
 # Colours and wallpapers come from the current theme (theme.nix, switcher on SUPER+CTRL+SHIFT+SPACE).
-{ config, pkgs, lib, ... }:
+{ config, pkgs, lib, osConfig, ... }:
 
 let
   theme = import ./theme.nix { inherit pkgs config; };
@@ -687,8 +687,10 @@ in
         "${config.xdg.configFile."elephant/elephant.toml".source}"
         "${config.xdg.configFile."elephant/files.toml".source}"
         # Elephant reads the app list at start and misses a rebuild swapping the app folder,
-        # so a new or removed app (in home.packages or a desktop entry) restarts it too.
+        # so a new or removed app restarts it too: user apps (home.packages, desktop entries)
+        # and system apps (environment.systemPackages, NixOS modules such as Waydroid).
         "${config.home.path}"
+        "${osConfig.system.path}"
       ];
     };
     Service = {
