@@ -147,6 +147,9 @@
   # on the old NVIDIA card it showed only a black screen. Image + ARM translation are set up
   # once with `waydroid init` and waydroid_script (outside this config).
   virtualisation.waydroid.enable = true;
+  # The default build sets up Android's network with legacy iptables, which this system's
+  # nftables-based firewall doesn't provide ("can't initialize iptables table `mangle'").
+  virtualisation.waydroid.package = pkgs.waydroid-nftables;
 
   # ---------- Apps with NixOS modules ----------
   # RGB lighting: MSI Mystic Light on the board (USB 0db0:0076), the G502 mouse, and anything on
