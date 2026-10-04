@@ -630,6 +630,8 @@ in
         "SUPER CTRL, SPACE, Background switcher, exec, ${theme.picker} backgrounds"
 
         ", PRINT, Screenshot (select an area), exec, hyprshot -m region -o ${config.home.homeDirectory}/Pictures/Screenshots"
+        "SHIFT, PRINT, Screenshot (whole screen in use), exec, hyprshot -m output -m active -o ${config.home.homeDirectory}/Pictures/Screenshots"
+        "CTRL, PRINT, Screenshot (active window), exec, hyprshot -m window -m active -o ${config.home.homeDirectory}/Pictures/Screenshots"
         "SUPER, PRINT, Color picker, exec, pkill hyprpicker || hyprpicker -a"
         "ALT, PRINT, Screen recording (start / stop), exec, ${screenRecord}"
       ];
