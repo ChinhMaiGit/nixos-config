@@ -46,13 +46,12 @@ in
   xdg.configFile."anifetch/autostart.sh".text = ''
     if [[ $- == *i* ]] && [ -t 0 ] && [ -t 1 ] && [ -z "''${ANIFETCH_SHOWN:-}" ]; then
       export ANIFETCH_SHOWN=1   # once per terminal, not again in nested shells
-      # Animation size by terminal width: big in a full-width window (~270 columns), medium in
-      # a half-width tiled one; too narrow for both side by side → plain fastfetch.
+      # The animation is as tall as the system info (14 lines, Chinh's wish, 2026-10-05) and then
+      # about 65 columns wide; with the info beside it that needs ~125 columns (a full or
+      # half-width window). Narrower windows show plain fastfetch.
       cols=$(tput cols)
-      if [ "$cols" -ge 180 ]; then
-        ${anifetchPkg}/bin/anifetch example.mp4 -W 100 -H 26
-      elif [ "$cols" -ge 120 ]; then
-        ${anifetchPkg}/bin/anifetch example.mp4 -W 64 -H 18
+      if [ "$cols" -ge 125 ]; then
+        ${anifetchPkg}/bin/anifetch example.mp4 -W 64 -H 14
       else
         fastfetch
       fi
