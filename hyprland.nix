@@ -152,6 +152,8 @@ let
     notify-send -t 3000 "Screen recording started" "Alt + Print to stop"
   '';
 
+  playerctlBin = "${pkgs.playerctl}/bin/playerctl";
+
   # Font Awesome glyphs from the Nerd Font, written as JSON escapes
   icon = code: builtins.fromJSON ''"\u${code}"'';
 
@@ -911,11 +913,66 @@ in
     settings.main = {
       layer = "top";
       position = "top";
-      height = 26;
+      # Floating "pills" (2026-10-05, ideas from the Serpantinum shell, written fresh): the bar
+      # itself is transparent; each group of modules sits in its own rounded box.
+      height = 34;
       spacing = 0;
-      modules-left = [ "hyprland/workspaces" ];
+      margin-top = 6;
+      margin-left = 10;
+      margin-right = 10;
+      modules-left = [ "hyprland/workspaces" "group/media" ];
       modules-center = [ "clock" ];
-      modules-right = [ "tray" "bluetooth" "network" "pulseaudio" "cpu" "custom/notifications" "custom/settings" "custom/power" ];
+      modules-right = [ "group/status" "group/system" ];
+
+      # What's playing (any MPRIS player: Edge, Spotify, Fonos in Waydroid, ...), with buttons.
+      # Hidden while nothing plays.
+      "group/media" = {
+        orientation = "horizontal";
+        modules = [ "custom/media-title" "custom/media-prev" "custom/media-play" "custom/media-next" ];
+      };
+      # Own title item instead of Waybar's mpris module, which left an empty box behind for
+      # Edge's stopped player. Same rule as the buttons: only while playing or paused.
+      "custom/media-title" = {
+        exec-if = "${playerctlBin} status 2>/dev/null | grep -qE 'Playing|Paused'";
+        exec = "${playerctlBin} metadata --format '{{title}} – {{artist}}' 2>/dev/null";
+        interval = 2;
+        max-length = 34;
+        tooltip = false;
+        on-click = "${playerctlBin} play-pause";
+      };
+      "custom/media-prev" = {
+        format = icon "f048";
+        exec-if = "${playerctlBin} status 2>/dev/null | grep -qE 'Playing|Paused'";   # not for stopped players
+        exec = "echo on";   # any output: an empty one would hide the button
+        interval = 2;
+        tooltip = false;
+        on-click = "${playerctlBin} previous";
+      };
+      "custom/media-play" = {
+        exec-if = "${playerctlBin} status 2>/dev/null | grep -qE 'Playing|Paused'";   # not for stopped players
+        # pause icon while playing, play icon otherwise
+        exec = "[ \"$(${playerctlBin} status)\" = Playing ] && echo '${icon "f04c"}' || echo '${icon "f04b"}'";
+        interval = 1;
+        tooltip = false;
+        on-click = "${playerctlBin} play-pause";
+      };
+      "custom/media-next" = {
+        format = icon "f051";
+        exec-if = "${playerctlBin} status 2>/dev/null | grep -qE 'Playing|Paused'";   # not for stopped players
+        exec = "echo on";   # any output: an empty one would hide the button
+        interval = 2;
+        tooltip = false;
+        on-click = "${playerctlBin} next";
+      };
+
+      "group/status" = {
+        orientation = "horizontal";
+        modules = [ "tray" "bluetooth" "network" "pulseaudio" "cpu" ];
+      };
+      "group/system" = {
+        orientation = "horizontal";
+        modules = [ "custom/notifications" "custom/settings" "custom/power" ];
+      };
 
       "hyprland/workspaces" = {
         on-click = "activate";
@@ -923,8 +980,8 @@ in
         persistent-workspaces."*" = 5;
       };
       clock = {
-        format = "{:%A %H:%M}";
-        format-alt = "{:%d %B W%V %Y}";
+        format = "{:%H:%M  ·  %a %d %b}";
+        format-alt = "{:%A %d %B %Y  ·  W%V}";
         format-alt-click = "click-right";   # right click: full date
         on-click = "${calendar}";   # left click: calendar (again: close it)
         tooltip = false;
@@ -992,27 +1049,74 @@ in
         border: none;
       }
       window#waybar {
-        background-color: @background;
+        background: transparent;
         color: @foreground;
       }
-      #workspaces button {
+
+      /* the pills: one rounded box per group, in the theme's colours */
+      #workspaces, #clock, #status, #system {
+        background: alpha(@background, 0.92);
+        border: 1px solid alpha(@foreground, 0.12);
+        border-radius: 12px;
         padding: 0 6px;
-        margin: 0 1.5px;
+        margin: 0 4px;
+      }
+      #clock {
+        padding: 0 14px;
+        font-weight: bold;
+        color: @bright_foreground;
+      }
+
+      #workspaces button {
+        padding: 0 7px;
+        margin: 4px 1px;
         color: @dark_foreground;
         background: transparent;
-        border-radius: 0;
+        border-radius: 8px;
       }
-      #workspaces button.active { color: @bright_foreground; }
+      #workspaces button.active {
+        color: @background;
+        background: @accent;
+      }
       #workspaces button.empty { opacity: 0.5; }
-      #workspaces button:hover { background: @selection; }
-      #clock { font-weight: bold; }
-      #tray, #bluetooth, #network, #pulseaudio, #cpu, #custom-notifications, #custom-settings, #custom-power {
-        padding: 0 10px;
+      #workspaces button:hover {
+        background: @selection;
+        color: @bright_foreground;
       }
-      #custom-power { margin-right: 6px; }
+
+      /* The media pill is drawn on its items, not on the group: an empty group (nothing
+         playing) would otherwise leave an empty rounded box. */
+      #custom-media-title, #custom-media-prev, #custom-media-play, #custom-media-next {
+        background: alpha(@background, 0.92);
+        border-top: 1px solid alpha(@foreground, 0.12);
+        border-bottom: 1px solid alpha(@foreground, 0.12);
+        padding: 0 6px;
+        color: @accent;
+      }
+      #custom-media-title {
+        color: @bright_foreground;
+        padding: 0 8px 0 12px;
+        margin-left: 4px;
+        border-left: 1px solid alpha(@foreground, 0.12);
+        border-radius: 12px 0 0 12px;
+      }
+      #custom-media-next {
+        padding-right: 12px;
+        border-right: 1px solid alpha(@foreground, 0.12);
+        border-radius: 0 12px 12px 0;
+      }
+
+      #tray, #bluetooth, #network, #pulseaudio, #cpu,
+      #custom-notifications, #custom-settings, #custom-power {
+        padding: 0 9px;
+      }
+      #custom-power { color: @accent; }
+      #custom-notifications.dnd { color: @dark_foreground; }
+
       tooltip {
         background: @dark_background;
         border: 2px solid @accent;
+        border-radius: 10px;
       }
     '';
   };
