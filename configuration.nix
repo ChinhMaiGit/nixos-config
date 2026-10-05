@@ -160,8 +160,11 @@
   programs.partition-manager.enable = true;
 
   # ---------- Local AI (planned): Ollama on ROCm for the RX 9070 XT ----------
+  # Switched off 2026-10-05 until Chinh decides on the local translation project (never used, no
+  # models). To bring it back: enable = true. Note for then: the service came up CPU-only at boot
+  # although this ROCm build supports the card (gfx1201); test a restart / wait for the GPU.
   services.ollama = {
-    enable = true;
+    enable = false;
     package = pkgs.ollama-rocm;
   };
 
