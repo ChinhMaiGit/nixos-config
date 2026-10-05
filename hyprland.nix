@@ -692,6 +692,10 @@ in
     export HYPRCURSOR_SIZE=24
     export QT_QPA_PLATFORMTHEME=kde
     export ELECTRON_OZONE_PLATFORM_HINT=wayland
+    # KDE apps find installed programs through an XDG menu file. UWSM sets the prefix to
+    # "hyprland-", but only Plasma's plasma-applications.menu exists, so Dolphin's "Open with"
+    # list was empty and it asked for a program on every click (2026-10-05).
+    export XDG_MENU_PREFIX=plasma-
   '';
 
   # Elephant (Walker's backend) as a service of the Hyprland session only (UWSM's target; not

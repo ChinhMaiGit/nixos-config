@@ -127,6 +127,43 @@
     run ${pkgs.kdePackages.kconfig}/bin/kwriteconfig6 --file baloofilerc --group General --key "exclude folders" "${config.home.homeDirectory}/OneDrive/"
   '';
 
+  # Default apps (2026-10-05): PDF in Papers, images in Gwenview, video in Haruna, music in Elisa,
+  # plus the link handlers that were already set. Home Manager now owns ~/.config/mimeapps.list;
+  # to change a default, change it here (an app's "remember my choice" can't write the file).
+  xdg.mimeApps = let
+    for = app: types: lib.genAttrs types (_: app);
+    papers = "org.gnome.Papers.desktop";
+    gwenview = "org.kde.gwenview.desktop";
+    haruna = "org.kde.haruna.desktop";
+    elisa = "org.kde.elisa.desktop";
+  in {
+    enable = true;
+    defaultApplications =
+      for papers [ "application/pdf" ]
+      // for gwenview [
+        "image/jpeg" "image/png" "image/gif" "image/webp" "image/bmp" "image/tiff"
+        "image/svg+xml" "image/heic" "image/avif" "image/x-icon"
+      ]
+      // for haruna [
+        "video/mp4" "video/x-matroska" "video/webm" "video/quicktime" "video/x-msvideo"
+        "video/mpeg" "video/ogg" "video/x-flv" "video/3gpp"
+      ]
+      // for elisa [
+        "audio/mpeg" "audio/flac" "audio/ogg" "audio/x-wav" "audio/wav" "audio/mp4"
+        "audio/aac" "audio/opus" "audio/x-m4a" "audio/x-flac" "audio/x-vorbis+ogg"
+      ]
+      // {
+        "x-scheme-handler/slack" = "slack.desktop";
+        "x-scheme-handler/geo" = "google-maps-geo-handler.desktop";
+        "x-scheme-handler/claude-cli" = "claude-code-url-handler.desktop";
+      };
+    associations.added = {
+      "application/pdf" = papers;
+      "x-scheme-handler/geo" = "google-maps-geo-handler.desktop";
+      "x-scheme-handler/slack" = "slack.desktop";
+    };
+  };
+
   # App launcher entry: resume exactly the PCAgent Claude Code session (by its ID, not "the most
   # recent one") in a terminal, from Walker (SUPER + SPACE) or Plasma's menu.
   xdg.desktopEntries.pcagent = {
