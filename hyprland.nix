@@ -369,45 +369,22 @@ let
   # notification history): Mako's history in the launcher, newest first. Choosing one with
   # buttons offers them; Mako can only invoke actions on visible notifications, so it restores
   # history entries until the chosen one is visible, invokes, and dismisses the rest again.
-  # Calendar popup for the clock (gsimplecal). It gets its own config folder: its settings, and
-  # a GTK stylesheet with the top bar's theme colours and font (read at each opening, so a theme
-  # or font switch applies next time) instead of the system GTK theme. Running it again closes it.
-  calendarConfig = pkgs.runCommand "calendar-config" { } ''
-    mkdir -p $out/gsimplecal $out/gtk-3.0
-    cat > $out/gsimplecal/config <<'EOF'
-    show_calendar = 1
-    show_timezones = 0
-    mark_today = 1
-    show_week_numbers = 1
-    close_on_unfocus = 1
-    mainwindow_decorated = 0
-    mainwindow_keep_above = 1
-    mainwindow_skip_taskbar = 1
-    mainwindow_resizable = 0
-    mainwindow_position = none
-    EOF
-    cat > $out/gtk-3.0/gtk.css <<'EOF'
-    @import url("file://${current}/waybar.css");
-    @import url("file://${theme.stateDir}/font.css");
-
-    * { font-size: 12px; }
-    window, calendar {
-      background-color: @background;
-      color: @foreground;
-      border: none;
-      box-shadow: none;
-    }
-    calendar { padding: 6px 8px; }
-    calendar.header { font-weight: bold; color: @bright_foreground; }
-    calendar.highlight { color: @accent; }
-    calendar:indeterminate { color: @muted; }
-    calendar:selected { background-color: @accent; color: @background; border-radius: 0; }
-    calendar.button { color: @dark_foreground; background: transparent; border: none; }
-    calendar.button:hover { color: @accent; }
-    EOF
-  '';
-  calendar = pkgs.writeShellScript "calendar" ''
-    XDG_CONFIG_HOME=${calendarConfig} exec ${pkgs.gsimplecal}/bin/gsimplecal
+  # Clock / calendar / weather dashboard (click the clock): dashboard.qml in Quickshell, in the
+  # theme's colours and font. It replaced the small gsimplecal calendar (2026-10-05). The weather
+  # places come from ~/.config/dashboard/places.json, kept out of this public repo on purpose
+  # (it would show where Chinh lives): [{ "name": ..., "lat": ..., "lon": ... }, ...], first one
+  # shown large. Without the file the dashboard shows clock and calendar only.
+  dashboard = pkgs.writeShellScript "dashboard" ''
+    colors=${theme.stateDir}/current/colors.json
+    places=${config.xdg.configHome}/dashboard/places.json
+    jq=${pkgs.jq}/bin/jq
+    DASH_ACCENT=$($jq -r .accent "$colors") \
+    DASH_BACKGROUND=$($jq -r .background "$colors") \
+    DASH_FOREGROUND=$($jq -r .bright_foreground "$colors") \
+    DASH_MUTED=$($jq -r .muted "$colors") \
+    DASH_FONT=$(cat ${theme.stateDir}/font 2>/dev/null || echo "JetBrainsMono Nerd Font") \
+    DASH_PLACES=$($jq -c . "$places" 2>/dev/null || echo "[]") \
+      exec ${pkgs.quickshell}/bin/qs --no-duplicate -p ${./dashboard.qml}
   '';
 
   notificationCenter = pkgs.writeShellScript "notification-center" ''
@@ -504,7 +481,6 @@ in
       # Calendar from the top bar's clock: a small floating popup just below the bar, centred on
       # the screen in use (positions are per monitor).
       windowrule = [
-        "float on, move ((monitor_w*0.5)-(window_w*0.5)) 36, match:class ^(gsimplecal)$"
         "float on, size 900 640, center on, match:title ^(Quick Notes)$"
       ];
 
@@ -983,7 +959,9 @@ in
         format = "{:%H:%M  ·  %a %d %b}";
         format-alt = "{:%A %d %B %Y  ·  W%V}";
         format-alt-click = "click-right";   # right click: full date
-        on-click = "${calendar}";   # left click: calendar (again: close it)
+        # Left click: dashboard (a click outside it, the clock included, or Esc closes it).
+        # Detached, so a Waybar reload can't end it.
+        on-click = "${pkgs.util-linux}/bin/setsid -f ${dashboard}";
         tooltip = false;
       };
       network = {
