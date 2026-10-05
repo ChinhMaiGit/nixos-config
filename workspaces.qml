@@ -1,7 +1,8 @@
 // Workspace pill with hover previews (top left of every monitor), written 2026-10-05. It took the
 // workspace buttons over from Waybar, which has no hover hook and can't show images. Same look
 // as the bar's pills; hovering a workspace shows a miniature of it with live images of its
-// windows (Hyprland's toplevel export, which also captures windows on hidden workspaces).
+// windows (Hyprland's toplevel export, which also captures windows on hidden workspaces); for
+// scrolling-layout workspaces it shows the whole strip with the on-screen part outlined.
 // Run with `qs -p workspaces.qml` by the workspace-pill user service; it passes:
 //   WS_ACCENT, WS_BACKGROUND, WS_FOREGROUND, WS_DARK_FOREGROUND, WS_SELECTION, WS_FONT
 // Left click: go to the workspace. Mouse wheel: next / previous workspace.
@@ -136,14 +137,34 @@ ShellRoot {
         id: preview
         readonly property var ws: panel.hoveredId > 0 ? panel.workspace(panel.hoveredId) : null
         readonly property var windows: ws ? ws.toplevels.values : []
-        readonly property real scale: panel.monitor ? root.previewWidth / panel.monitor.width : 0.2
+        // The area to draw: the monitor plus every window of the workspace. With the scrolling
+        // layout windows lie beside the screen (negative x, or past its right edge), so the
+        // miniature widens to show the whole strip instead of cutting them off.
+        readonly property var box: {
+          const m = panel.monitor
+          if (!m)
+            return { x: 0, y: 0, w: 1920, h: 1080 }
+          let x1 = m.x, y1 = m.y, x2 = m.x + m.width, y2 = m.y + m.height
+          for (const t of windows) {
+            const ipc = t.lastIpcObject
+            if (!ipc || !ipc.at || !ipc.size)
+              continue
+            x1 = Math.min(x1, ipc.at[0])
+            y1 = Math.min(y1, ipc.at[1])
+            x2 = Math.max(x2, ipc.at[0] + ipc.size[0])
+            y2 = Math.max(y2, ipc.at[1] + ipc.size[1])
+          }
+          return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 }
+        }
+        readonly property real maxWidth: root.previewWidth * 1.8   // wide strips get some extra room
+        readonly property real scale: Math.min(maxWidth / box.w, (root.previewWidth * 9 / 16) / box.h)
 
         visible: panel.hoveredId > 0
         anchor.window: panel
         anchor.rect.x: Math.max(0, panel.hoveredX - 20)
         anchor.rect.y: root.barHeight + 8
-        implicitWidth: root.previewWidth + 24
-        implicitHeight: (panel.monitor ? panel.monitor.height * scale : 200) + 58
+        implicitWidth: Math.max(220, box.w * scale) + 24
+        implicitHeight: box.h * scale + 58
         color: "transparent"
 
         Rectangle {
@@ -172,11 +193,24 @@ ShellRoot {
             x: 12
             anchors.top: title.bottom
             anchors.topMargin: 8
-            width: root.previewWidth
-            height: panel.monitor ? panel.monitor.height * preview.scale : 200
+            width: Math.max(196, preview.box.w * preview.scale)
+            height: preview.box.h * preview.scale
             radius: 8
             clip: true
             color: Qt.rgba(root.selection.r, root.selection.g, root.selection.b, 0.45)
+
+            Rectangle {   // the part of the strip that's on screen (matters for scrolling layouts)
+              visible: panel.monitor && preview.box.w > panel.monitor.width + 1
+              x: panel.monitor ? (panel.monitor.x - preview.box.x) * preview.scale : 0
+              y: panel.monitor ? (panel.monitor.y - preview.box.y) * preview.scale : 0
+              width: panel.monitor ? panel.monitor.width * preview.scale : 0
+              height: panel.monitor ? panel.monitor.height * preview.scale : 0
+              color: "transparent"
+              radius: 6
+              border.color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.5)
+              border.width: 1
+              z: 2
+            }
 
             Text {
               anchors.centerIn: parent
@@ -196,8 +230,8 @@ ShellRoot {
                 readonly property var ipc: modelData.lastIpcObject
                 readonly property bool known: ipc && ipc.at && ipc.size
                 visible: known
-                x: known ? (ipc.at[0] - panel.monitor.x) * preview.scale : 0
-                y: known ? (ipc.at[1] - panel.monitor.y) * preview.scale : 0
+                x: known ? (ipc.at[0] - preview.box.x) * preview.scale : 0
+                y: known ? (ipc.at[1] - preview.box.y) * preview.scale : 0
                 width: known ? ipc.size[0] * preview.scale : 0
                 height: known ? ipc.size[1] * preview.scale : 0
                 radius: 4
