@@ -60,8 +60,12 @@ ShellRoot {
       implicitHeight: root.barHeight
       color: "transparent"
       exclusionMode: ExclusionMode.Ignore   // Waybar already reserves the space
-      WlrLayershell.layer: WlrLayer.Top
+      // Overlay, not Top: Waybar's own top-layer surface spans the whole width, and whichever
+      // was created last took the mouse; after a Waybar reload hover and clicks stopped working
+      // (2026-10-05). Overlay is also above full-screen windows, so the pill hides for those.
+      WlrLayershell.layer: WlrLayer.Overlay
       WlrLayershell.namespace: "workspaces"
+      visible: !(monitor && monitor.activeWorkspace && monitor.activeWorkspace.hasFullscreen)
 
       Rectangle {
         id: pill
