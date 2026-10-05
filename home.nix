@@ -72,7 +72,20 @@
     Service = {
       # Clear a dead mount left by an unclean stop first ("-" = fine if nothing is mounted).
       ExecStartPre = [ "-/run/wrappers/bin/fusermount -uz %h/OneDrive" "${pkgs.coreutils}/bin/mkdir -p %h/OneDrive" ];
-      ExecStart = "${pkgs.rclone}/bin/rclone mount onedrive: %h/OneDrive --config=%h/.config/rclone/rclone.conf --vfs-cache-mode writes";
+      # Caching (2026-10-05): with only "writes" cached, every folder listing, file check and
+      # Dolphin thumbnail went to Microsoft's servers, and Dolphin froze while waiting (worst in
+      # lib_ebooks: a PDF thumbnail means downloading the whole PDF). Now listings are kept for an
+      # hour, OneDrive is asked for changes every minute (new files still appear quickly), and
+      # opened files stay on disk for a week (up to 20 GB), so they open instantly afterwards.
+      ExecStart = lib.concatStringsSep " " [
+        "${pkgs.rclone}/bin/rclone mount onedrive: %h/OneDrive"
+        "--config=%h/.config/rclone/rclone.conf"
+        "--vfs-cache-mode full"
+        "--vfs-cache-max-size 20G"
+        "--vfs-cache-max-age 168h"
+        "--dir-cache-time 1h"
+        "--poll-interval 1m"
+      ];
       # Lazy unmount (-z): a plain unmount fails while a program still reads a file, and the
       # sleep hook stops this service even then (2026-10-02, Dolphin PDF previews).
       ExecStop = "/run/wrappers/bin/fusermount -uz %h/OneDrive";
