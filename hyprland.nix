@@ -319,6 +319,7 @@ let
       "${icon "f1eb"}  Wi-Fi" "${icon "f293"}  Bluetooth" "${icon "f028"}  Audio" \
       "${icon "f287"}  Mount drive" "${icon "f052"}  Safely remove drive" \
       "${icon "f0e4"}  Power profile" "${icon "f1fc"}  Theme" "${icon "f03e"}  Background" \
+      "${icon "f120"}  Matrix wallpaper" \
       "${icon "f186"}  Night light" "${icon "f031"}  Font" "${icon "f0e7"}  Speed test" \
       "${icon "f11c"}  Keybindings" "${icon "f013"}  All settings (KDE)" \
       | pick Settings) || exit 0
@@ -353,6 +354,7 @@ let
         powerprofilesctl set "''${p%% *}" && notify-send -t 2000 "Power profile: ''${p%% *}" ;;
       *Theme) ${theme.picker} themes ;;
       *Background) ${theme.picker} backgrounds ;;
+      *"Matrix wallpaper") ${matrixToggle} ;;
       *"Night light") ${nightlight} ;;
       *Font)   # installed Nerd Fonts (they carry the icons the top bar uses), like omarchy-font-list
         current=$(cat ${theme.stateDir}/font 2>/dev/null || echo "${font}")
@@ -381,6 +383,31 @@ let
     WS_SELECTION=$($jq -r .selection "$colors") \
     WS_FONT=$(cat ${theme.stateDir}/font 2>/dev/null || echo "JetBrainsMono Nerd Font") \
       exec ${pkgs.quickshell}/bin/qs -p ${./workspaces.qml}
+  '';
+
+  # Matrix-rain wallpaper (matrix.qml), switched in the gear menu. On/off is remembered in the
+  # theme state folder and restored at login (exec-once below); the theme and font switchers
+  # restart it when it runs, for the new colours.
+  matrixWallpaper = pkgs.writeShellScript "matrix-wallpaper" ''
+    colors=${theme.stateDir}/current/colors.json
+    jq=${pkgs.jq}/bin/jq
+    MX_ACCENT=$($jq -r .accent "$colors") \
+    MX_BRIGHT=$($jq -r .bright_foreground "$colors") \
+    MX_BACKGROUND=$($jq -r .background "$colors") \
+    MX_FONT=$(cat ${theme.stateDir}/font 2>/dev/null || echo "JetBrainsMono Nerd Font") \
+      exec ${pkgs.quickshell}/bin/qs -p ${./matrix.qml}
+  '';
+  matrixToggle = pkgs.writeShellScript "matrix-toggle" ''
+    systemctl=${pkgs.systemd}/bin/systemctl
+    if $systemctl --user is-active --quiet matrix-wallpaper.service; then
+      $systemctl --user stop matrix-wallpaper.service
+      rm -f ${theme.stateDir}/matrix
+      notify-send -t 2000 "Matrix wallpaper off"
+    else
+      touch ${theme.stateDir}/matrix
+      $systemctl --user start matrix-wallpaper.service
+      notify-send -t 2000 "Matrix wallpaper on" "Gear menu > Matrix wallpaper turns it off"
+    fi
   '';
 
   # Clock / calendar / weather dashboard (click the clock): dashboard.qml in Quickshell, in the
@@ -476,6 +503,8 @@ in
       source = [ "${current}/hyprland.conf" layoutsFile ];
 
       exec-once = [
+        # Matrix wallpaper back on if it was on at the last session (gear menu toggle)
+        "[ -e ${theme.stateDir}/matrix ] && ${pkgs.systemd}/bin/systemctl --user start matrix-wallpaper.service"
         # Hand the login password to the KDE Wallet daemon so it unlocks; Plasma does this
         # itself, but its autostart entry isn't run here (gh, Edge, VS Code need the wallet).
         "${pkgs.kdePackages.kwallet-pam}/libexec/pam_kwallet_init"
@@ -712,6 +741,20 @@ in
   # Walker's background service keeps a connection to Elephant and aborts when Elephant
   # restarts (2026-10-02, after a rebuild). PartOf elephant.service makes systemd restart it
   # together with Elephant; Restart covers any other crash.
+  systemd.user.services.matrix-wallpaper = {
+    Unit = {
+      Description = "Matrix-rain wallpaper (Quickshell)";
+      PartOf = [ "wayland-session@hyprland.desktop.target" ];
+      After = [ "wayland-session@hyprland.desktop.target" ];
+    };
+    Service = {
+      ExecStart = "${matrixWallpaper}";
+      Restart = "on-failure";
+      RestartSec = 1;
+    };
+    # not started by default: matrixToggle / the login check below decide
+  };
+
   systemd.user.services.workspace-pill = {
     Unit = {
       Description = "Workspace pill with hover previews (Quickshell)";

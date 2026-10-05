@@ -87,6 +87,7 @@ let
     ${restartWallpaper}
     ${pkgs.systemd}/bin/systemctl --user restart walker.service   # reads its colours at start
     ${pkgs.systemd}/bin/systemctl --user restart workspace-pill.service   # the same
+    ${pkgs.systemd}/bin/systemctl --user try-restart matrix-wallpaper.service   # only if on
     ${pkgs.libnotify}/bin/notify-send -t 2000 "Theme: $(cat ${themes}/themes/"$(cat ${stateDir}/name)"/title)"
     # Last: reloading Waybar ends processes it started (a menu opened from the bar).
     ${pkgs.procps}/bin/pkill -SIGUSR2 waybar || true
@@ -99,6 +100,7 @@ let
     ${pkgs.mako}/bin/makoctl reload || true
     ${pkgs.systemd}/bin/systemctl --user restart walker.service
     ${pkgs.systemd}/bin/systemctl --user restart workspace-pill.service
+    ${pkgs.systemd}/bin/systemctl --user try-restart matrix-wallpaper.service
     ${pkgs.libnotify}/bin/notify-send -t 4000 "Font: $1" "Open apps (Edge, VS Code) show it in code text after a restart"
     # Last: reloading Waybar ends processes it started (a menu opened from the bar).
     ${pkgs.procps}/bin/pkill -SIGUSR2 waybar || true
