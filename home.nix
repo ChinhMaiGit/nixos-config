@@ -76,12 +76,12 @@
       # Dolphin thumbnail went to Microsoft's servers, and Dolphin froze while waiting (worst in
       # lib_ebooks: a PDF thumbnail means downloading the whole PDF). Now listings are kept for an
       # hour, OneDrive is asked for changes every minute (new files still appear quickly), and
-      # opened files stay on disk for a week (up to 20 GB), so they open instantly afterwards.
+      # opened files stay on disk for a week (up to 5 GB), so they open instantly afterwards.
       ExecStart = lib.concatStringsSep " " [
         "${pkgs.rclone}/bin/rclone mount onedrive: %h/OneDrive"
         "--config=%h/.config/rclone/rclone.conf"
         "--vfs-cache-mode full"
-        "--vfs-cache-max-size 20G"
+        "--vfs-cache-max-size 5G"
         "--vfs-cache-max-age 168h"
         "--dir-cache-time 1h"
         "--poll-interval 1m"
