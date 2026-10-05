@@ -60,7 +60,7 @@ ShellRoot {
     color: root.background
     visible: true
 
-    // Closed by the compositor (SUPER + W, SUPER + N again): save before going
+    // Closed by the compositor (SUPER + Q, SUPER + N again): save before going
     onVisibleChanged: if (!visible) root.close()
 
     ColumnLayout {

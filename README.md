@@ -59,7 +59,7 @@ MT7922 Wi-Fi card on kernel 6.18 LTS, and unmounting OneDrive around sleep.
 | `Super + Ctrl + Shift + Space` | Theme picker |
 | `Super + Ctrl + Space` | Wallpaper picker |
 | `Super + Return` | Terminal |
-| `Super + W` | Close window |
+| `Super + Q` | Close window |
 | `Super + F` / `Super + T` | Full screen / floating |
 | `Super + L` | Switch workspace layout (dwindle / scrolling) |
 | `Super + 1…0` | Workspaces |

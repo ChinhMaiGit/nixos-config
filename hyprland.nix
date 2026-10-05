@@ -580,7 +580,7 @@ in
         "SUPER SHIFT, F, File manager, exec, ${app "dolphin"}"
         "SUPER SHIFT, N, Editor, exec, ${app "code"}"
 
-        "SUPER, W, Close window, killactive,"
+        "SUPER, Q, Close window, killactive,"   # not W: right next to Ctrl+W (close tab), easy to hit by mistake
         "SUPER, J, Toggle window split, layoutmsg, togglesplit"
         "SUPER, L, Toggle workspace layout (dwindle / scrolling), exec, ${layoutToggle}"
         "SUPER, P, Pseudo window, pseudo,"
