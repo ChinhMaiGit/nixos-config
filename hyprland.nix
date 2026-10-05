@@ -369,6 +369,20 @@ let
   # notification history): Mako's history in the launcher, newest first. Choosing one with
   # buttons offers them; Mako can only invoke actions on visible notifications, so it restores
   # history entries until the chosen one is visible, invokes, and dismisses the rest again.
+  # Workspace pill with hover previews (workspaces.qml): runs as a service (below), restarted by
+  # the theme and font switchers so it picks up the new colours and font.
+  workspacePill = pkgs.writeShellScript "workspace-pill" ''
+    colors=${theme.stateDir}/current/colors.json
+    jq=${pkgs.jq}/bin/jq
+    WS_ACCENT=$($jq -r .accent "$colors") \
+    WS_BACKGROUND=$($jq -r .background "$colors") \
+    WS_FOREGROUND=$($jq -r .bright_foreground "$colors") \
+    WS_DARK_FOREGROUND=$($jq -r .dark_foreground "$colors") \
+    WS_SELECTION=$($jq -r .selection "$colors") \
+    WS_FONT=$(cat ${theme.stateDir}/font 2>/dev/null || echo "JetBrainsMono Nerd Font") \
+      exec ${pkgs.quickshell}/bin/qs -p ${./workspaces.qml}
+  '';
+
   # Clock / calendar / weather dashboard (click the clock): dashboard.qml in Quickshell, in the
   # theme's colours and font. It replaced the small gsimplecal calendar (2026-10-05). The weather
   # places come from ~/.config/dashboard/places.json, kept out of this public repo on purpose
@@ -698,6 +712,20 @@ in
   # Walker's background service keeps a connection to Elephant and aborts when Elephant
   # restarts (2026-10-02, after a rebuild). PartOf elephant.service makes systemd restart it
   # together with Elephant; Restart covers any other crash.
+  systemd.user.services.workspace-pill = {
+    Unit = {
+      Description = "Workspace pill with hover previews (Quickshell)";
+      PartOf = [ "wayland-session@hyprland.desktop.target" ];
+      After = [ "wayland-session@hyprland.desktop.target" ];
+    };
+    Service = {
+      ExecStart = "${workspacePill}";
+      Restart = "on-failure";
+      RestartSec = 1;
+    };
+    Install.WantedBy = [ "wayland-session@hyprland.desktop.target" ];
+  };
+
   systemd.user.services.walker = {
     Unit = {
       Description = "Walker launcher (background service)";
@@ -896,9 +924,11 @@ in
       margin-top = 6;
       margin-left = 10;
       margin-right = 10;
-      modules-left = [ "hyprland/workspaces" "group/media" ];
+      # The workspace buttons are a Quickshell panel in this spot (workspaces.qml, with hover
+      # previews), so the left side stays empty here and the media pill sits on the right.
+      modules-left = [ ];
       modules-center = [ "clock" ];
-      modules-right = [ "group/status" "group/system" ];
+      modules-right = [ "group/media" "group/status" "group/system" ];
 
       # What's playing (any MPRIS player: Edge, Spotify, Fonos in Waydroid, ...), with buttons.
       # Hidden while nothing plays.
@@ -950,11 +980,6 @@ in
         modules = [ "custom/notifications" "custom/settings" "custom/power" ];
       };
 
-      "hyprland/workspaces" = {
-        on-click = "activate";
-        format = "{name}";
-        persistent-workspaces."*" = 5;
-      };
       clock = {
         format = "{:%H:%M  ·  %a %d %b}";
         format-alt = "{:%A %d %B %Y  ·  W%V}";
@@ -1032,7 +1057,7 @@ in
       }
 
       /* the pills: one rounded box per group, in the theme's colours */
-      #workspaces, #clock, #status, #system {
+      #clock, #status, #system {
         background: alpha(@background, 0.92);
         border: 1px solid alpha(@foreground, 0.12);
         border-radius: 12px;
@@ -1042,23 +1067,6 @@ in
       #clock {
         padding: 0 14px;
         font-weight: bold;
-        color: @bright_foreground;
-      }
-
-      #workspaces button {
-        padding: 0 7px;
-        margin: 4px 1px;
-        color: @dark_foreground;
-        background: transparent;
-        border-radius: 8px;
-      }
-      #workspaces button.active {
-        color: @background;
-        background: @accent;
-      }
-      #workspaces button.empty { opacity: 0.5; }
-      #workspaces button:hover {
-        background: @selection;
         color: @bright_foreground;
       }
 
