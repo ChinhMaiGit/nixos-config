@@ -3,6 +3,17 @@
 # backup archive; this file declares the programs and the few configs worth managing.
 { config, pkgs, lib, ... }:
 
+let
+  # Word, Excel and PowerPoint formats (old and new) for the Office Online opener
+  officeTypes = [
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    "application/msword"
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    "application/vnd.ms-excel"
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    "application/vnd.ms-powerpoint"
+  ];
+in
 {
   imports = [ ./hyprland.nix ./fastfetch.nix ./dev.nix ];
 
@@ -127,11 +138,68 @@
     run ${pkgs.kdePackages.kconfig}/bin/kwriteconfig6 --file baloofilerc --group General --key "exclude folders" "${config.home.homeDirectory}/OneDrive/"
   '';
 
+  # Word / Excel / PowerPoint files open in Office Online (2026-10-05, Chinh's choice). Office
+  # Online only opens files that are in OneDrive, so: a file in ~/OneDrive opens directly (its
+  # OneDrive ID is looked up through rclone); a file elsewhere is copied into
+  # ~/OneDrive/Opened from PC/ first (the original stays as it is) and opens once uploaded.
+  # The rclone mount is the personal OneDrive, so this is personal Office Online (no Power Query).
+  xdg.desktopEntries.office-online = let
+    officeOnline = pkgs.writeShellScript "office-online" ''
+      set -u
+      notify() { ${pkgs.libnotify}/bin/notify-send -t 4000 -i x-office-document "$@"; }
+      rclone() { ${pkgs.rclone}/bin/rclone --config "$HOME/.config/rclone/rclone.conf" "$@"; }
+      file=$(${pkgs.coreutils}/bin/realpath -- "$1")
+      onedrive=$HOME/OneDrive
+      case "$file" in
+        "$onedrive"/*) rel=''${file#"$onedrive"/} ;;
+        *)
+          # Copy into OneDrive; a different file with the same name gets a number added.
+          dir="$onedrive/Opened from PC"
+          mkdir -p "$dir"
+          name=$(basename -- "$file"); base=''${name%.*}; ext=''${name##*.}
+          target="$dir/$name"; n=2
+          while [ -e "$target" ] && ! cmp -s "$file" "$target"; do
+            target="$dir/$base ($n).$ext"; n=$((n + 1))
+          done
+          [ -e "$target" ] || cp -- "$file" "$target"
+          rel=''${target#"$onedrive"/}
+          notify "Uploading to OneDrive…" "$(basename -- "$target") opens in Office Online when it's uploaded"
+          ;;
+      esac
+      # Wait until OneDrive has the whole file (a fresh copy takes a few seconds to upload).
+      size=$(stat -c %s -- "$onedrive/$rel")
+      id=""
+      for i in $(seq 1 60); do
+        info=$(rclone lsjson --stat "onedrive:$rel" 2>/dev/null)
+        id=$(echo "$info" | ${pkgs.jq}/bin/jq -r '.ID // empty')
+        remote=$(echo "$info" | ${pkgs.jq}/bin/jq -r '.Size // -1')
+        [ -n "$id" ] && [ "$remote" = "$size" ] && break
+        id=""; sleep 2
+      done
+      if [ -z "$id" ]; then
+        notify -u critical "Couldn't open in Office Online" "OneDrive didn't confirm the upload of $rel (offline?)"
+        exit 1
+      fi
+      # rclone's ID is "<drive>#<item>"; the item ID opens the document in Office Online.
+      drive=''${id%%#*}; item=''${id#*#}
+      exec ${pkgs.xdg-utils}/bin/xdg-open "https://onedrive.live.com/edit.aspx?cid=$drive&resid=$item"
+    '';
+  in {
+    name = "Office Online";
+    comment = "Open in Word, Excel or PowerPoint Online (via OneDrive)";
+    exec = "${officeOnline} %f";
+    icon = "x-office-document";
+    terminal = false;
+    noDisplay = true;   # only for opening files, not listed in the launcher
+    mimeType = officeTypes;
+  };
+
   # Default apps (2026-10-05): PDF in Papers, images in Gwenview, video in Haruna, music in Elisa,
   # plus the link handlers that were already set. Home Manager now owns ~/.config/mimeapps.list;
   # to change a default, change it here (an app's "remember my choice" can't write the file).
   xdg.mimeApps = let
     for = app: types: lib.genAttrs types (_: app);
+    office = "office-online.desktop";
     papers = "org.gnome.Papers.desktop";
     gwenview = "org.kde.gwenview.desktop";
     haruna = "org.kde.haruna.desktop";
@@ -140,6 +208,7 @@
     enable = true;
     defaultApplications =
       for papers [ "application/pdf" ]
+      // for office officeTypes
       // for gwenview [
         "image/jpeg" "image/png" "image/gif" "image/webp" "image/bmp" "image/tiff"
         "image/svg+xml" "image/heic" "image/avif" "image/x-icon"
