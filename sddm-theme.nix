@@ -1,5 +1,6 @@
-# Omarchy's SDDM login theme (basecamp/omarchy default/sddm/omarchy, MIT) with Main.qml from
-# ./sddm (session line + F2 switch, "Welcome back", wallpaper background). Installed as the SDDM theme "omarchy".
+# Login screen: Omarchy's SDDM theme folder (basecamp/omarchy default/sddm/omarchy, MIT) with our
+# own Main.qml from ./sddm (blurred wallpaper, big clock, password pill, session and keyboard
+# pills, power menu; rewritten 2026-10-05) and the Cyan wallpaper. Installed as the SDDM theme "omarchy".
 { pkgs }:
 
 let
