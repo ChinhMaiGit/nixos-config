@@ -182,7 +182,11 @@ in
       fi
       # rclone's ID is "<drive>#<item>"; the item ID opens the document in Office Online.
       drive=''${id%%#*}; item=''${id#*#}
-      exec ${pkgs.xdg-utils}/bin/xdg-open "https://onedrive.live.com/edit.aspx?cid=$drive&resid=$item"
+      ${pkgs.xdg-utils}/bin/xdg-open "https://onedrive.live.com/edit.aspx?cid=$drive&resid=$item"
+      # Edge opens it as a tab in its existing window, which may be on another workspace:
+      # bring that window to the front so the document is actually seen.
+      sleep 1
+      ${pkgs.hyprland}/bin/hyprctl dispatch focuswindow "class:^(microsoft-edge)$" >/dev/null 2>&1 || true
     '';
   in {
     name = "Office Online";
