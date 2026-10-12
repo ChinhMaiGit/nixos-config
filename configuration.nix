@@ -41,6 +41,12 @@
   # desktop and every sleep test since ran with them.
   boot.extraModprobeConfig = "options mt7921e disable_aspm=1";
   networking.networkmanager.wifi.powersave = false;
+  # DNS: a local ad-blocking DNS server is set in the Wi-Fi connection itself (NetworkManager,
+  # ipv4.dns), not here, so its address stays out of this public repo. NetworkManager lists it
+  # before the router's own DNS servers, which remain as a fallback; a short timeout keeps the
+  # switch to them quick when it doesn't answer. (networking.nameservers ended up after the router's
+  # servers, and networkmanager.insertNameservers was lost whenever resolv.conf was rewritten.)
+  networking.resolvconf.extraOptions = [ "timeout:1" ];
   time.timeZone = "Europe/Berlin";
   i18n.defaultLocale = "en_US.UTF-8";
 

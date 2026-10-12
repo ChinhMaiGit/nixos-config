@@ -29,6 +29,14 @@ in
     discord slack
     # Development
     vscode claude-code uv gh nodejs jdk python3
+    (writeShellScriptBin "homelab-claude" ''
+      # Open the homelab laptop's Claude Code session (~/Claude) over SSH. "homelab" is a host
+      # alias in ~/.ssh/config (address and username kept there, out of this public repo).
+      # No arguments: resume the latest conversation. With arguments, they go to claude
+      # instead, e.g. `homelab-claude --resume` to pick a conversation from a list.
+      args=''${*:---continue}
+      exec ${openssh}/bin/ssh -t homelab "bash -lc 'cd ~/Claude && claude $args'"
+    '')
     # Documents, OCR, LaTeX
     pandoc ocrmypdf poppler-utils ghostscript
     (tesseract.override { enableLanguages = [ "eng" "deu" "vie" "frk" ]; })
@@ -242,6 +250,26 @@ in
     comment = "Resume the PC assistant session (Claude Code in ~/PCAgent)";
     exec = "alacritty --class pcagent --working-directory ${config.home.homeDirectory}/PCAgent -e ${config.home.homeDirectory}/.local/bin/claude --resume 08c2aab2-c850-4b4a-96fa-a4d55505b2c2";
     icon = "utilities-terminal";
+    terminal = false;
+    categories = [ "Utility" "System" ];
+  };
+
+  # The homelab laptop's Claude Code session in a terminal (homelab-claude, see home.packages).
+  xdg.desktopEntries.homelab-claude = {
+    name = "Homelab Claude";
+    comment = "Resume the homelab laptop's Claude Code session over SSH";
+    exec = "alacritty --class homelab-claude -e homelab-claude";
+    icon = "network-server";
+    terminal = false;
+    categories = [ "Utility" "System" ];
+  };
+
+  # A shell on the homelab laptop, to change and rebuild its config from here.
+  xdg.desktopEntries.homelab-terminal = {
+    name = "Homelab Terminal";
+    comment = "Open a shell on the homelab laptop over SSH";
+    exec = "alacritty --class homelab-terminal -e ssh homelab";
+    icon = "network-server";
     terminal = false;
     categories = [ "Utility" "System" ];
   };
