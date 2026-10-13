@@ -13,6 +13,29 @@ let
     "application/vnd.openxmlformats-officedocument.presentationml.presentation"
     "application/vnd.ms-powerpoint"
   ];
+
+  # PdfCraft (github.com/storytold/pdfcraft): open-source PDF reader and editor in Rust, not in
+  # nixpkgs yet (2026-10-13). The release AppImage is pinned by its published SHA-256; bump
+  # version + hash to update. Its own launcher entry and icon are copied out of the AppImage.
+  pdfcraft = let
+    pname = "pdfcraft";
+    version = "0.7.1";
+    src = pkgs.fetchurl {
+      url = "https://github.com/storytold/pdfcraft/releases/download/v${version}/pdfcraft-${version}-linux-x86_64.AppImage";
+      sha256 = "ae5c879bb326d0e91a241e9f9c6c17608ef766c005c66c2d7280270107bf635a";
+    };
+    contents = pkgs.appimageTools.extract { inherit pname version src; };
+  in pkgs.appimageTools.wrapType2 {
+    inherit pname version src;
+    extraInstallCommands = ''
+      for f in ${contents}/*.desktop; do
+        install -Dm444 "$f" "$out/share/applications/$(basename "$f")"
+      done
+      if [ -d ${contents}/usr/share/icons ]; then
+        mkdir -p $out/share && cp -r ${contents}/usr/share/icons $out/share/
+      fi
+    '';
+  };
 in
 {
   imports = [ ./hyprland.nix ./fastfetch.nix ./dev.nix ];
@@ -38,7 +61,7 @@ in
       exec ${openssh}/bin/ssh -t homelab "bash -lc 'cd ~/Claude && claude $args'"
     '')
     # Documents, OCR, LaTeX
-    pandoc ocrmypdf poppler-utils ghostscript
+    pandoc ocrmypdf poppler-utils ghostscript pdfcraft
     (tesseract.override { enableLanguages = [ "eng" "deu" "vie" "frk" ]; })
     texlive.combined.scheme-full
     # Comics / e-books (Kindle pipeline)
