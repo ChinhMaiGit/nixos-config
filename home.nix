@@ -19,10 +19,10 @@ let
   # version + hash to update. Its own launcher entry and icon are copied out of the AppImage.
   pdfcraft = let
     pname = "pdfcraft";
-    version = "0.7.1";
+    version = "0.8.0";
     src = pkgs.fetchurl {
       url = "https://github.com/storytold/pdfcraft/releases/download/v${version}/pdfcraft-${version}-linux-x86_64.AppImage";
-      sha256 = "ae5c879bb326d0e91a241e9f9c6c17608ef766c005c66c2d7280270107bf635a";
+      sha256 = "6b89397ec10ad505e732f18982b6ad171aab085d938ca0c3034a00d4199e38f7";
     };
     contents = pkgs.appimageTools.extract { inherit pname version src; };
   in pkgs.appimageTools.wrapType2 {
@@ -73,7 +73,7 @@ in
     haruna kdePackages.elisa kdePackages.gwenview kdePackages.kate kdePackages.kcalc
     kdePackages.kcharselect kdePackages.ark kdePackages.ksystemlog
     kdePackages.dolphin-plugins kdePackages.ffmpegthumbs kdePackages.kdegraphics-thumbnailers
-    simple-scan papers
+    simple-scan   # PDFs: PdfCraft (packaged above; Papers removed 2026-10-17)
     # System / terminal tools
     btop htop cmatrix go-mtpfs
     # Cloud
@@ -227,20 +227,21 @@ in
     mimeType = officeTypes;
   };
 
-  # Default apps (2026-10-05): PDF in Papers, images in Gwenview, video in Haruna, music in Elisa,
+  # Default apps (2026-10-05): PDF in PdfCraft (since 2026-10-17, replacing Papers),
+  # images in Gwenview, video in Haruna, music in Elisa,
   # plus the link handlers that were already set. Home Manager now owns ~/.config/mimeapps.list;
   # to change a default, change it here (an app's "remember my choice" can't write the file).
   xdg.mimeApps = let
     for = app: types: lib.genAttrs types (_: app);
     office = "office-online.desktop";
-    papers = "org.gnome.Papers.desktop";
+    pdfcraft = "ai.storyteller.pdfcraft.desktop";
     gwenview = "org.kde.gwenview.desktop";
     haruna = "org.kde.haruna.desktop";
     elisa = "org.kde.elisa.desktop";
   in {
     enable = true;
     defaultApplications =
-      for papers [ "application/pdf" ]
+      for pdfcraft [ "application/pdf" ]
       // for office officeTypes
       // for gwenview [
         "image/jpeg" "image/png" "image/gif" "image/webp" "image/bmp" "image/tiff"
@@ -260,7 +261,7 @@ in
         "x-scheme-handler/claude-cli" = "claude-code-url-handler.desktop";
       };
     associations.added = {
-      "application/pdf" = papers;
+      "application/pdf" = pdfcraft;
       "x-scheme-handler/geo" = "google-maps-geo-handler.desktop";
       "x-scheme-handler/slack" = "slack.desktop";
     };

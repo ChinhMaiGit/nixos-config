@@ -32,6 +32,9 @@
   systemd.timers.nix-cleanup.timerConfig.Persistent = true;
   nixpkgs.config.allowUnfree = true;                        # Steam, Edge, VS Code, Discord, Slack, Claude Code
   programs.nix-ld.enable = true;                            # prebuilt binaries (uv/pip wheels, VS Code extensions)
+  # AppImages downloaded outside this config start directly (double-click or ./name.AppImage),
+  # through appimage-run's FHS environment.
+  programs.appimage = { enable = true; binfmt = true; };
 
   # ---------- Machine ----------
   networking.hostName = "ChinhMaiPC";
@@ -89,7 +92,7 @@
     jetbrains-mono caskaydia-mono fira-code hack
     space-mono roboto-mono ubuntu-mono comic-shanns-mono _3270 departure-mono victor-mono
   ];
-  # Default Plasma apps Chinh removed on Kubuntu too (PDFs open in GNOME Papers).
+  # Default Plasma apps Chinh removed on Kubuntu too (PDFs open in PdfCraft).
   environment.plasma6.excludePackages = with pkgs.kdePackages; [ okular ];
 
   # ---------- Graphics: AMD RX 9070 XT ----------
